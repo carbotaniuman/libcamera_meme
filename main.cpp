@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #include <sys/mman.h>
 
 #include "dma_buf_alloc.h"
@@ -37,9 +38,9 @@ int main() {
     });
 
     std::vector<int> fds {
-        allocer.alloc_buf(width * height * 4),
-        allocer.alloc_buf(width * height * 4),
-        allocer.alloc_buf(width * height * 4)
+            allocer.alloc_buf(width * height * 4),
+            allocer.alloc_buf(width * height * 4),
+            allocer.alloc_buf(width * height * 4)
     };
 
     std::thread threshold([&]() {
@@ -62,17 +63,31 @@ int main() {
                 mmaped.emplace(fd, static_cast<unsigned char *>(mmap_ptr));
             }
 
-            std::array<unsigned char, width * height * 4> temp = {};
+            cv::Mat threshold_mat(height, width, CV_8UC1);
+            unsigned char *threshold_out_buf = threshold_mat.data;
+            cv::Mat color_mat(height, width, CV_8UC3);
+            unsigned char *color_out_buf = color_mat.data;
+
             while (true) {
                 auto fd = gpu_queue.pop();
                 if (fd == -1) {
                     break;
                 }
 
-                std::memcpy(&temp, mmaped.at(fd), width * height * 4);
-                thresholder.returnBuffer(fd);
+                auto input_ptr = mmaped.at(fd);
+                int bound = width * height;
 
-                cv::Mat mat(width, height, CV_8UC4, &temp);
+                for (int i = 0; i < bound; i++) {
+                    std::memcpy(color_out_buf + i * 3, input_ptr + i * 4, 3);
+                    threshold_out_buf[i] = input_ptr[i * 4 + 3];
+                }
+
+                // pls don't optimize these writes out compiler
+                std::cout << reinterpret_cast<uint64_t>(threshold_out_buf) << " " << reinterpret_cast<uint64_t>(color_out_buf) << std::endl;
+
+                thresholder.returnBuffer(fd);
+                // cv::imshow("cam", mat);
+                // cv::waitKey(3);
             }
         });
 
