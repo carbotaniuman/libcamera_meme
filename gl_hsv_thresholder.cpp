@@ -44,7 +44,7 @@ static constexpr const char *VERTEX_SOURCE =
         "   gl_Position = vec4(vertex, 0.0, 1.0);"
         "}";
 
-static constexpr const char *FRAGMENT_SOURCE =
+static constexpr const char *HSV_FRAGMENT_SOURCE =
         "#version 100\n"
         "#extension GL_OES_EGL_image_external : require\n"
         ""
@@ -79,6 +79,25 @@ static constexpr const char *FRAGMENT_SOURCE =
         "void main(void) {"
         "  vec3 col = texture2D(tex, texcoord).rgb;"
         "  gl_FragColor = vec4(col.bgr, int(inRange(rgb2hsv(col))));"
+        "}";
+
+static constexpr const char *GRAY_FRAGMENT_SOURCE =
+        "#version 100\n"
+        "#extension GL_OES_EGL_image_external : require\n"
+        ""
+        "precision lowp float;"
+        "precision lowp int;"
+        ""
+        "varying vec2 texcoord;"
+        ""
+        "uniform samplerExternalOES tex;"
+        ""
+        "void main(void) {"
+        "    vec3 gammaColor = texture2D(tex, texcoord.xy).rgb;"
+        "    vec3 color = pow(gammaColor, vec3(2.0));"
+        "    float gray = dot(color, vec3(0.2126, 0.7152, 0.0722));"
+        "    float gammaGray = sqrt(gray);"
+        "    gl_FragColor = vec4(color.bgr, gammaGray);"
         "}";
 
 GLuint make_shader(GLenum type, const char *source) {
@@ -208,7 +227,7 @@ void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
     EGLERROR();
 
     {
-        auto program = make_program(VERTEX_SOURCE, FRAGMENT_SOURCE);
+        auto program = make_program(VERTEX_SOURCE, GRAY_FRAGMENT_SOURCE);
 
         glUseProgram(program);
         GLERROR();
