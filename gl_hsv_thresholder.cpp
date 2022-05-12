@@ -232,7 +232,7 @@ void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
         const EGLint image_attribs[] = {
                 EGL_WIDTH, static_cast<EGLint>(m_width),
                 EGL_HEIGHT, static_cast<EGLint>(m_height),
-                EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ARGB8888,
+                EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ABGR8888,
                 EGL_DMA_BUF_PLANE0_FD_EXT, static_cast<EGLint>(fd),
                 EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
                 EGL_DMA_BUF_PLANE0_PITCH_EXT, static_cast<EGLint>(m_width * 4),
