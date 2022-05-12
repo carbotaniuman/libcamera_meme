@@ -378,6 +378,8 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
 
     glFinish();
     GLERROR();
+    glDeleteTextures(1, &texture);
+    GLERROR();
 
     if(m_onComplete) {
         m_onComplete->operator()(framebuffer_fd);
