@@ -8,8 +8,6 @@
 
 #include <libdrm/drm_fourcc.h>
 
-#include "stb_image.h"
-
 #define GLERROR() glerror(__LINE__)
 #define EGLERROR() eglerror(__LINE__)
 
@@ -140,15 +138,7 @@ GLuint make_program(const char *vertex_source, const char *fragment_source) {
     return program;
 }
 
-GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>& output_buf_fds): m_width(width), m_height(height) {
-    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress(
-            "glEGLImageTargetTexture2DOES");
-    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
-
-    if (!glEGLImageTargetTexture2DOES) {
-        throw std::runtime_error("cannot get address of glEGLImageTargetTexture2DOES");
-    }
-
+GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_height(height) {
     auto display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     EGLERROR();
     if (display == EGL_NO_DISPLAY) {
@@ -205,8 +195,14 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
     }
     EGLERROR();
     m_surface = surface;
+}
 
-    if (!eglMakeCurrent(display, surface, surface, context)) {
+void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
+    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress(
+            "glEGLImageTargetTexture2DOES");
+    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
+
+    if (!eglMakeCurrent(m_display, m_surface, m_surface, m_context)) {
         throw std::runtime_error("failed to bind egl context");
     }
     EGLERROR();
@@ -234,15 +230,15 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
         GLERROR();
 
         const EGLint image_attribs[] = {
-                EGL_WIDTH, static_cast<EGLint>(width),
-                EGL_HEIGHT, static_cast<EGLint>(height),
+                EGL_WIDTH, static_cast<EGLint>(m_width),
+                EGL_HEIGHT, static_cast<EGLint>(m_height),
                 EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ARGB8888,
                 EGL_DMA_BUF_PLANE0_FD_EXT, static_cast<EGLint>(fd),
                 EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-                EGL_DMA_BUF_PLANE0_PITCH_EXT, static_cast<EGLint>(width * 4),
+                EGL_DMA_BUF_PLANE0_PITCH_EXT, static_cast<EGLint>(m_width * 4),
                 EGL_NONE
         };
-        auto image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, image_attribs);
+        auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, image_attribs);
         EGLERROR();
         if (!image) {
             throw std::runtime_error("failed to import fd " + std::to_string(fd));

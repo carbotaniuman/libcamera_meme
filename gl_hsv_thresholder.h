@@ -21,7 +21,8 @@ public:
         EGLint pitch;
     };
 
-    explicit GlHsvThresholder(int width, int height, const std::vector<int>& output_buf_fds);
+    explicit GlHsvThresholder(int width, int height);
+    void start(const std::vector<int>& output_buf_fds);
     void setOnComplete(std::function<void(int)> onComplete);
     void resetOnComplete();
 
