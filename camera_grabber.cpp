@@ -36,8 +36,8 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
         auto request = m_camera->createRequest();
 
         auto &controls = request->controls();
-        controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(8333), static_cast<int64_t>(8333)});
-        controls.set(libcamera::controls::ExposureTime, 1);
+        // controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(8333), static_cast<int64_t>(8333)});
+        // controls.set(libcamera::controls::ExposureTime, 10000);
 
         request->addBuffer(stream, buffer.get());
         m_requests.push_back(std::move(request));

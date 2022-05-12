@@ -16,6 +16,17 @@
 #include "libcamera_opengl_utility.h"
 #include "concurrent_blocking_queue.h"
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
+double approxRollingAverage (double avg, double new_sample) {
+
+    avg -= avg / 50;
+    avg += new_sample / 50;
+
+    return avg;
+}
+
 int main() {
     constexpr int width = 1920, height = 1080;
 
@@ -54,6 +65,8 @@ int main() {
             gpu_queue.push(fd);
         });
 
+        double gpuTimeAvgMs = 0;
+
         while (true) {
             auto request = camera_queue.pop();
 
@@ -75,7 +88,14 @@ int main() {
               static_cast<EGLint>(stride / 2)},
              }};
 
+            auto begintime = steady_clock::now();
             thresholder.testFrame(yuv_data, encodingFromColorspace(colorspace), rangeFromColorspace(colorspace));
+
+            std::chrono::duration<double, std::milli> elapsedMillis = steady_clock::now() - begintime;
+            if (elapsedMillis > 0.9ms) {
+                gpuTimeAvgMs = approxRollingAverage(gpuTimeAvgMs, elapsedMillis.count());
+                std::cout << "GLProcess: " << gpuTimeAvgMs << std::endl;
+            }
             grabber.requeueRequest(request);
         }
     });
@@ -96,12 +116,15 @@ int main() {
         cv::Mat color_mat(height, width, CV_8UC3);
         unsigned char *color_out_buf = color_mat.data;
 
+        double copyTimeAvgMs = 0;
+
         while (true) {
             auto fd = gpu_queue.pop();
             if (fd == -1) {
                 break;
             }
 
+            auto begintime = steady_clock::now();
             auto input_ptr = mmaped.at(fd);
             int bound = width * height;
 
@@ -114,8 +137,16 @@ int main() {
             std::cout << reinterpret_cast<uint64_t>(threshold_out_buf) << " " << reinterpret_cast<uint64_t>(color_out_buf) << std::endl;
 
             thresholder.returnBuffer(fd);
-            // cv::imshow("cam", mat);
-            // cv::waitKey(3);
+
+            std::chrono::duration<double, std::milli> elapsedMillis = steady_clock::now() - begintime;
+            // if (elapsedMillis > 0.9ms) {
+                copyTimeAvgMs = approxRollingAverage(copyTimeAvgMs, elapsedMillis.count());
+                std::cout << "Copy: " << copyTimeAvgMs << std::endl;
+            // }
+
+            // cv::imshow("cam_color", color_mat);
+            // cv::imshow("cam_single", threshold_mat);
+            // cv::waitKey(1);
         }
     });
 
@@ -123,10 +154,12 @@ int main() {
 
     grabber.startAndQueue();
 
-    for (int i = 0; i < 10; i++) {
-        std::cout << "Waiting for 1 second" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    while (true) {}
+
+    // for (int i = 0; i < 10; i++) {
+        // std::cout << "Waiting for 1 second" << std::endl;
+        // std::this_thread::sleep_for(std::chrono::seconds(1));
+    // }
 
     return 0;
 }
