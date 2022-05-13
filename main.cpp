@@ -98,6 +98,9 @@ int main() {
                 break;
             }
 
+            // in Nanoseconds, from the Linux CLOCK_BOOTTIME 
+            auto sensorTimestamp = request->controls()->get(libcamera::controls::SensorTimestamp); 
+
             auto planes = request->buffers().at(grabber.streamConfiguration().stream())->planes();
 
             std::array<GlHsvThresholder::DmaBufPlaneData, 3> yuv_data {{
