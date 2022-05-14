@@ -18,12 +18,9 @@
 
 class CameraRunner {
 public:
-  CameraRunner(int width, int height, const std::string &id)
-  {
-    auto cameras = camera_manager_->cameras();
-    auto *camera = std::find_if(cameras.begin(), cameras.end(), [](auto &cam)
-                                { return cam->id() == id; })
-  }
+  CameraRunner(int width, int height, int fps, const std::string &id);
+
+  CameraGrabber GetCameraGrabber();
 
   void Stop();
 
