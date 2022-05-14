@@ -29,7 +29,7 @@ Java_org_photonvision_raspi_LibCameraJNI_isSupported(JNIEnv *, jclass);
  * Method:    createCamera
  * Signature: (III)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
+JNIEXPORT jlong JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
     JNIEnv *, jclass, jint, jint, jint);
 
 /*
@@ -38,15 +38,15 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(JNIEnv *, jclass);
+Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(JNIEnv *, jclass, jlong);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
  * Method:    setThresholds
  * Signature: (DDDDDD)V
  */
-JNIEXPORT void JNICALL Java_org_photonvision_raspi_LibCameraJNI_setThresholds(
-    JNIEnv *, jclass, jdouble, jdouble, jdouble, jdouble, jdouble, jdouble);
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setThresholds(
+    JNIEnv *, jclass, jlong, jdouble, jdouble, jdouble, jdouble, jdouble, jdouble);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
@@ -54,7 +54,7 @@ JNIEXPORT void JNICALL Java_org_photonvision_raspi_LibCameraJNI_setThresholds(
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setExposure(JNIEnv *, jclass, jint);
+Java_org_photonvision_raspi_LibCameraJNI_setExposure(JNIEnv *, jclass, jlong, jint);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
@@ -62,7 +62,7 @@ Java_org_photonvision_raspi_LibCameraJNI_setExposure(JNIEnv *, jclass, jint);
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setBrightness(JNIEnv *, jclass, jint);
+Java_org_photonvision_raspi_LibCameraJNI_setBrightness(JNIEnv *, jclass, jlong, jint);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
@@ -70,10 +70,12 @@ Java_org_photonvision_raspi_LibCameraJNI_setBrightness(JNIEnv *, jclass, jint);
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setGain(JNIEnv *, jclass, jint);
+Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(JNIEnv *, jclass, jlong, jint);
+JNIEXPORT jboolean JNICALL
+Java_org_photonvision_raspi_LibCameraJNI_setDigitalGain(JNIEnv *, jclass, jlong, jint);
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
-    JNIEnv *, jclass, jint red, jint blue);
+    JNIEnv *, jclass, jlong, jint red, jint blue);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
@@ -81,15 +83,7 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setRotation(JNIEnv *, jclass, jint);
-
-/*
- * Class:     org_photonvision_raspi_LibCameraJNI
- * Method:    setShouldCopyColor
- * Signature: (Z)V
- */
-JNIEXPORT void JNICALL Java_org_photonvision_raspi_LibCameraJNI_setShouldCopyColor(
-    JNIEnv *, jclass, jboolean);
+Java_org_photonvision_raspi_LibCameraJNI_setRotation(JNIEnv *, jclass, jlong, jint);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
@@ -104,8 +98,18 @@ Java_org_photonvision_raspi_LibCameraJNI_getFrameLatency(JNIEnv *, jclass);
  * Method:    grabFrame
  * Signature: (Z)J
  */
+JNIEXPORT jboolean JNICALL
+Java_org_photonvision_raspi_LibCameraJNI_awaitNewFrame(JNIEnv *, jclass, jlong);
+
 JNIEXPORT jlong JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_grabFrame(JNIEnv *, jclass, jboolean);
+Java_org_photonvision_raspi_LibCameraJNI_getColorFrame(JNIEnv *, jclass, jlong);
+
+JNIEXPORT jlong JNICALL
+Java_org_photonvision_raspi_LibCameraJNI_getGPUoutput(JNIEnv *, jclass, jlong);
+
+// True if greyscale, else binary threshold output
+JNIEXPORT jlong JNICALL
+Java_org_photonvision_raspi_LibCameraJNI_setShouldGreyscale(JNIEnv *, jclass, jlong, jboolean);
 
 #ifdef __cplusplus
 }
