@@ -1,0 +1,37 @@
+#include <libcamera/camera.h>
+#include <libcamera/camera_manager.h>
+
+#include <thread>
+#include <chrono>
+#include <iostream>
+#include <cstring>
+
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <sys/mman.h>
+
+#include "dma_buf_alloc.h"
+#include "gl_hsv_thresholder.h"
+#include "camera_grabber.h"
+#include "libcamera_opengl_utility.h"
+#include "concurrent_blocking_queue.h"
+
+class CameraRunner {
+public:
+  CameraRunner(int width, int height, const std::string &id)
+  {
+    auto cameras = camera_manager_->cameras();
+    auto *camera = std::find_if(cameras.begin(), cameras.end(), [](auto &cam)
+                                { return cam->id() == id; })
+  }
+
+  void Stop();
+
+private:
+  std::thread m_threshold;
+
+  bool threshold_thread_run = true;
+  bool display_thread_run = true;
+}
+
+static std::vector<std::string> GetAllCameraIDs();
