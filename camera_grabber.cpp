@@ -72,10 +72,31 @@ void CameraGrabber::requestComplete(libcamera::Request *request) {
 }
 
 void CameraGrabber::requeueRequest(libcamera::Request *request) {
+    // This resets all our controls
+    // https://github.com/kbingham/libcamera/blob/master/src/libcamera/request.cpp#L397
     request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
+
+    setControls(request);
+
     if (m_camera->queueRequest(request) < 0) {
         throw std::runtime_error("failed to queue request");
     }
+}
+
+void CameraGrabber::setControls(libcamera::Request *request) {
+    auto &controls = request->controls();
+    controls.set(libcamera::controls::AeEnable, false); // Auto exposure disabled
+    controls.set(libcamera::controls::AwbEnable, false); // AWB disabled
+    controls.set(libcamera::controls::ExposureTime, m_settings.exposureTimeUs); // in microseconds
+    controls.set(libcamera::controls::AnalogueGain, m_settings.analogGain); // Analog gain, min 1 max big number?
+    controls.set(libcamera::controls::DigitalGain, m_settings.digitalGain); // Digital gain, unknown range
+    controls.set(libcamera::controls::ColourGains, {m_settings.awbRedGain, m_settings.awbBlueGain}); // AWB gains, red and blue, unknown range
+    controls.set(libcamera::controls::Brightness, m_settings.brightness); // -1 to 1, 0 means unchanged
+    controls.set(libcamera::controls::Contrast, m_settings.contrast); // Nominal 1
+    controls.set(libcamera::controls::Saturation, m_settings.saturation); // Nominal 1, 0 would be greyscale
+    controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(0), static_cast<int64_t>(0)}); // Set default to zero, we have specificed the exposure time
+
+    // Additionally, we can set crop regions and stuff
 }
 
 void CameraGrabber::startAndQueue() {
@@ -85,6 +106,7 @@ void CameraGrabber::startAndQueue() {
 
 // TODO: HANDLE THIS BETTER
     for (auto &request: m_requests) {
+        setControls(request);
         if (m_camera->queueRequest(request.get()) < 0) {
             throw std::runtime_error("failed to queue request");
         }
