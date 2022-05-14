@@ -38,7 +38,7 @@ Java_org_photonvision_raspi_LibCameraJNI_isSupported(JNIEnv *env jclass) {
 }
 
 JNIEXPORT jlong JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
-    JNIEnv *env jclass, jint width, jint height, jint fps) {
+    JNIEnv *env jclass, jint width, jint height) {
   
   auto& cameras = GetAllCameraIDs();
 
@@ -75,14 +75,14 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setExposure(
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setBrightness(
-    JNIEnv *env jclass, jlong runnerPtr, jint brightness) {
+    JNIEnv *env jclass, jlong runnerPtr, jdouble brightness) {
   CameraRunner *runner = (CameraRunner*)runnerPtr;
   runner->GetCameraGrabber().GetCameraSettings().brightness = brightness;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
-    JNIEnv *env jclass, jlong runnerPtr, jint red, jint blue) {
+    JNIEnv *env jclass, jlong runnerPtr, jdouble red, jdouble blue) {
   CameraRunner *runner = (CameraRunner*)runnerPtr;
   runner->GetCameraGrabber().GetCameraSettings().awbRedGain = red;
   runner->GetCameraGrabber().GetCameraSettings().awbBlueGain = blue;
@@ -90,14 +90,14 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(JNIEnv *env jclass, jlong runnerPrt, jint analog) {
+Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(JNIEnv *env jclass, jlong runnerPrt, jdouble analog) {
   CameraRunner *runner = (CameraRunner*)runnerPtr;
   runner->GetCameraGrabber().GetCameraSettings().analogGain = analog;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL
-Java_org_photonvision_raspi_LibCameraJNI_setDigitalGain(JNIEnv *env jclass, jlong runnerPrt, jint digital) {
+Java_org_photonvision_raspi_LibCameraJNI_setDigitalGain(JNIEnv *env jclass, jlong runnerPrt, jdouble digital) {
   CameraRunner *runner = (CameraRunner*)runnerPtr;
   runner->GetCameraGrabber().GetCameraSettings().digitalGain = digital;
   return true;
@@ -133,7 +133,7 @@ Java_org_photonvision_raspi_LibCameraJNI_getGPUoutput(JNIEnv *env jclass, jlong 
   return 0;
 }
 
-JNIEXPORT jlong JNICALL
+JNIEXPORT jboolean JNICALL
 Java_org_photonvision_raspi_LibCameraJNI_setShouldGreyscale(JNIEnv *env jclass, jlong runnerPtr, jboolean) {
   CameraRunner *runner = (CameraRunner*)runnerPtr;
   return 0;
