@@ -7,11 +7,19 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "stb_img.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct ShaderStatus {
     EGLDisplay display;
-    EGLContext ctx;
-}
+    EGLContext context;
+    EGLSurface surface;
+};
 
-ShaderStatus create();
+int create(struct ShaderStatus *status);
+
+#ifdef __cplusplus
+}
+#endif

@@ -8,6 +8,8 @@
 
 #include <libdrm/drm_fourcc.h>
 
+#include "stb_img.h"
+
 #define GLERROR() glerror(__LINE__)
 #define EGLERROR() eglerror(__LINE__)
 
@@ -157,63 +159,72 @@ GLuint make_program(const char *vertex_source, const char *fragment_source) {
     return program;
 }
 
+#include "triangle.h"
+
 GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_height(height) {
-    auto display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    EGLERROR();
-    if (display == EGL_NO_DISPLAY) {
-        throw std::runtime_error("failed to get default display");
-    }
+    // auto display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    // EGLERROR();
+    // if (display == EGL_NO_DISPLAY) {
+    //     throw std::runtime_error("failed to get default display");
+    // }
 
-    if (!eglInitialize(display, nullptr, nullptr)) {
-        throw std::runtime_error("failed to initialize display");
-    }
-    EGLERROR();
+    // if (!eglInitialize(display, nullptr, nullptr)) {
+    //     throw std::runtime_error("failed to initialize display");
+    // }
+    // EGLERROR();
 
-    const EGLint attribs[] = {
-            EGL_RED_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_BLUE_SIZE, 8,
-            EGL_ALPHA_SIZE, 8,
-            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_NONE
-    };
+    // const EGLint attribs[] = {
+    //         EGL_RED_SIZE, 8,
+    //         EGL_GREEN_SIZE, 8,
+    //         EGL_BLUE_SIZE, 8,
+    //         EGL_ALPHA_SIZE, 8,
+    //         EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+    //         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+    //         EGL_NONE
+    // };
 
-    EGLConfig config;
-    EGLint num_configs;
-    if (!eglChooseConfig(display, attribs, &config, 1, &num_configs) || num_configs < 1) {
-        throw std::runtime_error("failed to choose config");
-    }
-    EGLERROR();
+    // EGLConfig config;
+    // EGLint num_configs;
+    // if (!eglChooseConfig(display, attribs, &config, 1, &num_configs) || num_configs < 1) {
+    //     throw std::runtime_error("failed to choose config");
+    // }
+    // EGLERROR();
 
-    if (!eglBindAPI(EGL_OPENGL_ES_API)) {
-        throw std::runtime_error("failed to bind API");
-    }
-    EGLERROR();
-    m_display = display;
+    // if (!eglBindAPI(EGL_OPENGL_ES_API)) {
+    //     throw std::runtime_error("failed to bind API");
+    // }
+    // EGLERROR();
+    // m_display = display;
 
-    const EGLint ctx_attribs[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL_NONE
-    };
-    auto context = eglCreateContext(display, config, EGL_NO_CONTEXT, ctx_attribs);
-    if (!context) {
-        throw std::runtime_error("failed to create context");
-    }
-    EGLERROR();
-    m_context = context;
+    // const EGLint ctx_attribs[] = {
+    //         EGL_CONTEXT_CLIENT_VERSION, 2,
+    //         EGL_NONE
+    // };
+    // auto context = eglCreateContext(display, config, EGL_NO_CONTEXT, ctx_attribs);
+    // if (!context) {
+    //     throw std::runtime_error("failed to create context");
+    // }
+    // EGLERROR();
+    // m_context = context;
 
-    const EGLint pbuffer_attribs[] = {
-            EGL_WIDTH, width,
-            EGL_HEIGHT, height,
-            EGL_NONE
-    };
-    auto surface = eglCreatePbufferSurface(display, config, pbuffer_attribs);
-    if (!surface) {
-        throw std::runtime_error("failed to create pixel buffer surface");
+    // const EGLint pbuffer_attribs[] = {
+    //         EGL_WIDTH, width,
+    //         EGL_HEIGHT, height,
+    //         EGL_NONE
+    // };
+    // auto surface = eglCreatePbufferSurface(display, config, pbuffer_attribs);
+    // if (!surface) {
+    //     throw std::runtime_error("failed to create pixel buffer surface");
+    // }
+    // EGLERROR();
+    // m_surface = surface;
+    ShaderStatus status;
+    if(create(&status)) {
+        throw std::runtime_error("Couldn't create stuff");
     }
-    EGLERROR();
-    m_surface = surface;
+    m_context = status.context;
+    m_display = status.display;
+    m_surface = status.surface;
 }
 
 void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {

@@ -1,13 +1,4 @@
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <gbm.h>
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include "stb_img.h"
+#include "triangle.h"
 
 // The following code related to DRM/GBM was adapted from the following sources:
 // https://github.com/eyelash/tutorials/blob/master/drm-gbm.c
@@ -228,7 +219,7 @@ static const char *eglGetErrorStr()
     return "Unknown error!";
 }
 
-int main()
+int create(struct ShaderStatus *ret)
 {
     EGLDisplay display;
     // You can try chaning this to "card0" if "card1" does not work.
@@ -301,119 +292,125 @@ int main()
         return EXIT_FAILURE;
     }
 
-    EGLSurface surface =
-        eglCreateWindowSurface(display, configs[configIndex], gbmSurface, NULL);
-    if (surface == EGL_NO_SURFACE)
-    {
-        fprintf(stderr, "Failed to create EGL surface! Error: %s\n",
-                eglGetErrorStr());
-        eglDestroyContext(display, context);
-        eglTerminate(display);
-        gbmClean();
-        return EXIT_FAILURE;
-    }
+    // EGLSurface surface =
+    //     eglCreateWindowSurface(display, configs[configIndex], gbmSurface, NULL);
+    // if (surface == EGL_NO_SURFACE)
+    // {
+    //     fprintf(stderr, "Failed to create EGL surface! Error: %s\n",
+    //             eglGetErrorStr());
+    //     eglDestroyContext(display, context);
+    //     eglTerminate(display);
+    //     gbmClean();
+    //     return EXIT_FAILURE;
+    // }
 
     free(configs);
-    eglMakeCurrent(display, surface, surface, context);
 
-    // Set GL Viewport size, always needed!
-    glViewport(0, 0, desiredWidth, desiredHeight);
+    ret->display = display;
+    ret->context = context;
+    ret->surface = 0;
+    return 0;
 
-    // Get GL Viewport size and test if it is correct.
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
+    // eglMakeCurrent(display, surface, surface, context);
 
-    // viewport[2] and viewport[3] are viewport width and height respectively
-    printf("GL Viewport size: %dx%d\n", viewport[2], viewport[3]);
+    // // Set GL Viewport size, always needed!
+    // glViewport(0, 0, desiredWidth, desiredHeight);
 
-    if (viewport[2] != desiredWidth || viewport[3] != desiredHeight)
-    {
-        fprintf(stderr, "Error! The glViewport returned incorrect values! Something is wrong!\n");
-        eglDestroyContext(display, context);
-        eglDestroySurface(display, surface);
-        eglTerminate(display);
-        gbmClean();
-        return EXIT_FAILURE;
-    }
+    // // Get GL Viewport size and test if it is correct.
+    // GLint viewport[4];
+    // glGetIntegerv(GL_VIEWPORT, viewport);
 
-    // Clear whole screen (front buffer)
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // // viewport[2] and viewport[3] are viewport width and height respectively
+    // printf("GL Viewport size: %dx%d\n", viewport[2], viewport[3]);
 
-    // Create a shader program
-    // NO ERRRO CHECKING IS DONE! (for the purpose of this example)
-    // Read an OpenGL tutorial to properly implement shader creation
-    program = glCreateProgram();
-    glUseProgram(program);
-    vert = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vert, 1, &vertexShaderCode, NULL);
-    glCompileShader(vert);
-    frag = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(frag, 1, &fragmentShaderCode, NULL);
-    glCompileShader(frag);
-    glAttachShader(program, frag);
-    glAttachShader(program, vert);
-    glLinkProgram(program);
-    glUseProgram(program);
+    // if (viewport[2] != desiredWidth || viewport[3] != desiredHeight)
+    // {
+    //     fprintf(stderr, "Error! The glViewport returned incorrect values! Something is wrong!\n");
+    //     eglDestroyContext(display, context);
+    //     eglDestroySurface(display, surface);
+    //     eglTerminate(display);
+    //     gbmClean();
+    //     return EXIT_FAILURE;
+    // }
 
-    // Create Vertex Buffer Object
-    // Again, NO ERRRO CHECKING IS DONE! (for the purpose of this example)
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), vertices, GL_STATIC_DRAW);
+    // // Clear whole screen (front buffer)
+    // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Get vertex attribute and uniform locations
-    posLoc = glGetAttribLocation(program, "pos");
-    colorLoc = glGetUniformLocation(program, "color");
+    // // Create a shader program
+    // // NO ERRRO CHECKING IS DONE! (for the purpose of this example)
+    // // Read an OpenGL tutorial to properly implement shader creation
+    // program = glCreateProgram();
+    // glUseProgram(program);
+    // vert = glCreateShader(GL_VERTEX_SHADER);
+    // glShaderSource(vert, 1, &vertexShaderCode, NULL);
+    // glCompileShader(vert);
+    // frag = glCreateShader(GL_FRAGMENT_SHADER);
+    // glShaderSource(frag, 1, &fragmentShaderCode, NULL);
+    // glCompileShader(frag);
+    // glAttachShader(program, frag);
+    // glAttachShader(program, vert);
+    // glLinkProgram(program);
+    // glUseProgram(program);
 
-    // Set the desired color of the triangle to pink
-    // 100% red, 0% green, 50% blue, 100% alpha
-    glUniform4f(colorLoc, 1.0, 0.0f, 0.5, 1.0);
+    // // Create Vertex Buffer Object
+    // // Again, NO ERRRO CHECKING IS DONE! (for the purpose of this example)
+    // glGenBuffers(1, &vbo);
+    // glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), vertices, GL_STATIC_DRAW);
 
-    // Set our vertex data
-    glEnableVertexAttribArray(posLoc);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
-                          (void *)0);
+    // // Get vertex attribute and uniform locations
+    // posLoc = glGetAttribLocation(program, "pos");
+    // colorLoc = glGetUniformLocation(program, "color");
 
-    // Render a triangle consisting of 3 vertices:
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    // // Set the desired color of the triangle to pink
+    // // 100% red, 0% green, 50% blue, 100% alpha
+    // glUniform4f(colorLoc, 1.0, 0.0f, 0.5, 1.0);
 
-    // Depending on your application, you might need to swap the buffers.
-    // If you only want to render to an image file (as shown below) then this is not necessary.
-    // But if you want to show the OpenGL render on a screen through HDMI, you might need it.
-    // gbmSwapBuffers(&display, &surface);
+    // // Set our vertex data
+    // glEnableVertexAttribArray(posLoc);
+    // glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+    //                       (void *)0);
 
-    // Create buffer to hold entire front buffer pixels
-    // We multiply width and height by 3 to because we use RGB!
-    unsigned char *buffer =
-        (unsigned char *)malloc(desiredWidth * desiredHeight * 3);
+    // // Render a triangle consisting of 3 vertices:
+    // glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    // Copy entire screen
-    glReadPixels(0, 0, desiredWidth, desiredHeight, GL_RGB, GL_UNSIGNED_BYTE,
-                 buffer);
+    // // Depending on your application, you might need to swap the buffers.
+    // // If you only want to render to an image file (as shown below) then this is not necessary.
+    // // But if you want to show the OpenGL render on a screen through HDMI, you might need it.
+    // // gbmSwapBuffers(&display, &surface);
 
-    // Write all pixels to a file
-    FILE *output = fopen("triangle.raw", "wb");
-    if (output)
-    {
-        fwrite(buffer, 1, desiredWidth * desiredHeight * 3, output);
-        fclose(output);
-    }
-    else
-    {
-        fprintf(stderr, "Failed to open file triangle.raw for writing!\n");
-    }
+    // // Create buffer to hold entire front buffer pixels
+    // // We multiply width and height by 3 to because we use RGB!
+    // unsigned char *buffer =
+    //     (unsigned char *)malloc(desiredWidth * desiredHeight * 3);
 
-    // Free copied pixels
-    free(buffer);
+    // // Copy entire screen
+    // glReadPixels(0, 0, desiredWidth, desiredHeight, GL_RGB, GL_UNSIGNED_BYTE,
+    //              buffer);
 
-    // Cleanup
-    eglDestroyContext(display, context);
-    eglDestroySurface(display, surface);
-    eglTerminate(display);
-    gbmClean();
+    // // Write all pixels to a file
+    // FILE *output = fopen("triangle.raw", "wb");
+    // if (output)
+    // {
+    //     fwrite(buffer, 1, desiredWidth * desiredHeight * 3, output);
+    //     fclose(output);
+    // }
+    // else
+    // {
+    //     fprintf(stderr, "Failed to open file triangle.raw for writing!\n");
+    // }
 
-    close(device);
-    return EXIT_SUCCESS;
+    // // Free copied pixels
+    // free(buffer);
+
+    // // Cleanup
+    // eglDestroyContext(display, context);
+    // eglDestroySurface(display, surface);
+    // eglTerminate(display);
+    // gbmClean();
+
+    // close(device);
+    // return EXIT_SUCCESS;
 }
