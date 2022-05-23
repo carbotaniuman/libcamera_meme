@@ -8,8 +8,6 @@
 
 #include <libdrm/drm_fourcc.h>
 
-#include "stb_img.h"
-
 #define GLERROR() glerror(__LINE__)
 #define EGLERROR() eglerror(__LINE__)
 
@@ -232,13 +230,13 @@ void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
             "glEGLImageTargetTexture2DOES");
     static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
 
-    if (!eglMakeCurrent(m_display, m_surface, m_surface, m_context)) {
+    if (!eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_context)) {
         throw std::runtime_error("failed to bind egl context");
     }
     EGLERROR();
 
     {
-        auto program = make_program(VERTEX_SOURCE, GRAY_FRAGMENT_SOURCE);
+        auto program = make_program(VERTEX_SOURCE, HSV_FRAGMENT_SOURCE);
 
         glUseProgram(program);
         GLERROR();
@@ -338,6 +336,9 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
     auto framebuffer = m_framebuffers.at(framebuffer_fd);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     GLERROR();
+
+    // Set GL Viewport size, always needed!
+    glViewport(0, 0, m_width, m_height);
 
     EGLint attribs[] = {
             EGL_WIDTH, m_width,
