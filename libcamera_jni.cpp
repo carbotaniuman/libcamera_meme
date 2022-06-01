@@ -20,6 +20,8 @@
 #include "camera_manager.h"
 #include "camera_runner.h"
 
+static CameraRunner *runner = 0;
+
 extern "C" {
 
 #include <jni.h>
@@ -37,7 +39,7 @@ Java_org_photonvision_raspi_LibCameraJNI_isSupported(JNIEnv *env, jclass) {
     return true;
 }
 
-JNIEXPORT jlong JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
     JNIEnv *env, jclass, jint width, jint height, jint fps) {
   
   std::vector<std::shared_ptr<libcamera::Camera>> cameras = GetAllCameraIDs();
@@ -50,7 +52,17 @@ JNIEXPORT jlong JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
 	if (cameras.size() == 0) return 0;
 
   // // Otherwise, just create the first camera left
-  return (jlong) new CameraRunner(width, height, fps, cameras[0]);
+  runner = new CameraRunner(width, height, fps, cameras[0]);
+  return runner != 0;
+}
+
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
+    JNIEnv *, jclass) {
+  if (runner) {
+    runner->Start();
+    return true;
+  }      
+  return false;
 }
 
 JNIEXPORT jboolean JNICALL

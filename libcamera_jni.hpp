@@ -29,8 +29,11 @@ Java_org_photonvision_raspi_LibCameraJNI_isSupported(JNIEnv *, jclass);
  * Method:    createCamera
  * Signature: (III)Z
  */
-JNIEXPORT jlong JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera(
     JNIEnv *, jclass, jint, jint, jint);
+
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
+    JNIEnv *, jclass);
 
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
