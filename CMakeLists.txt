@@ -21,7 +21,7 @@ if (JNI_FOUND)
     message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
 endif ()
 
-add_executable(libcamera_meme main.cpp concurrent_blocking_queue.h
+add_library(photonlibcamera SHARED concurrent_blocking_queue.h
         camera_grabber.cpp dma_buf_alloc.cpp
         gl_hsv_thresholder.cpp
         libcamera_opengl_utility.cpp
@@ -29,8 +29,13 @@ add_executable(libcamera_meme main.cpp concurrent_blocking_queue.h
         camera_manager.cpp
         camera_runner.cpp
         headless_opengl.cpp
-        )
+)
+target_include_directories(photonlibcamera PUBLIC ${OPENGL_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS} ${LIBCAMERA_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS} ${JNI_INCLUDE_DIRS})
+target_link_libraries(photonlibcamera PUBLIC OpenGL::GL OpenGL::EGL Threads::Threads ${LIBCAMERA_LINK_LIBRARIES}
+        ${OpenCV_LIBS} ${LIBDRM_LINK_LIBRARIES} gbm)
+
+add_executable(libcamera_meme main.cpp)
 target_include_directories(libcamera_meme PUBLIC ${OPENGL_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS} ${LIBCAMERA_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS} ${JNI_INCLUDE_DIRS})
-target_link_libraries(libcamera_meme PUBLIC OpenGL::GL OpenGL::EGL Threads::Threads ${LIBCAMERA_LINK_LIBRARIES}
-        ${OpenCV_LIBS} ${LIBDRM_LINK_LIBRARIES} gbm)
+target_link_libraries(libcamera_meme photonlibcamera)
