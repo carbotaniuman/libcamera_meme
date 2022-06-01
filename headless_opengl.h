@@ -3,6 +3,7 @@
 #include <EGL/egl.h>
 
 #include <string>
+#include <vector>
 
 struct ShaderStatus {
     int gbmFd;
@@ -12,4 +13,4 @@ struct ShaderStatus {
     EGLContext context;
 };
 
-ShaderStatus createHeadless(const std::string& name);
+ShaderStatus createHeadless(const std::vector<std::string>& paths);

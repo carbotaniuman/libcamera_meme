@@ -39,10 +39,25 @@ static const EGLint contextAttribs[] = {
         EGL_NONE
 };
 
-ShaderStatus createHeadless(const std::string& name)
+ShaderStatus createHeadless(const std::vector<std::string>& paths)
 {
-    int device = open(name.c_str(), O_RDWR | O_CLOEXEC);
+    int device = -1;
+    for (const auto &path: paths) {
+        device = open(path.c_str(), O_RDWR | O_CLOEXEC);
+        if (device != -1) {
+            break;
+        }
+    }
+
+    // no device could be opened
+    if (device == -1) {
+        throw std::runtime_error("Unable to open graphics fd");
+    }
+
     gbm_device *gbmDevice = gbm_create_device(device);
+    if (gbmDevice == nullptr) {
+        throw std::runtime_error("Unable to create GBM device");
+    }
 
     EGLDisplay display = eglGetDisplay((EGLNativeDisplayType)gbmDevice);
     if (display == EGL_NO_DISPLAY) {
