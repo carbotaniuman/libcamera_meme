@@ -214,7 +214,7 @@ GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_hei
     // }
     // EGLERROR();
     // m_surface = surface;
-    ShaderStatus status = createHeadless("/dev/dri/card0");
+    ShaderStatus status = createHeadless("/dev/dri/card1");
     m_context = status.context;
     m_display = status.display;
 }
@@ -392,10 +392,10 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
     glVertexAttribPointer(attr_loc, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
     GLERROR();
     static auto lll = glGetUniformLocation(m_program, "lowerThresh");
-    glUniform3f(lll, 0.0, 50.0 / 255.0, 50.0 / 255.0);
+    glUniform3f(lll, m_hsvLower[0], m_hsvLower[1], m_hsvLower[3]);
     GLERROR();
     static auto uuu = glGetUniformLocation(m_program, "upperThresh");
-    glUniform3f(uuu, 1.0, 1.0, 1.0);
+    glUniform3f(uuu, m_hsvUpper[0], m_hsvUpper[1], m_hsvUpper[3]);
     GLERROR();
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -422,4 +422,14 @@ void GlHsvThresholder::resetOnComplete() {
 void GlHsvThresholder::returnBuffer(int fd) {
     std::scoped_lock lock(m_renderable_mutex);
     m_renderable.push(fd);
+}
+
+void GlHsvThresholder::setHsvThresholds(double hl, double sl, double vl, double hu, double su, double vu) {
+    m_hsvLower[0] = hl;
+    m_hsvLower[1] = sl;
+    m_hsvLower[2] = vl;
+
+    m_hsvUpper[0] = hu;
+    m_hsvUpper[1] = su;
+    m_hsvUpper[2] = vu;
 }

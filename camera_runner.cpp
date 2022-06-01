@@ -10,6 +10,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <sys/mman.h>
 
+#include <libcamera/property_ids.h>
+
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
@@ -27,6 +29,11 @@ CameraRunner::CameraRunner(int width, int height, int fps, const std::shared_ptr
         thresholder(m_width, m_height),
         allocer("/dev/dma_heap/linux,cma")
     {
+
+    auto& cprp = m_camera->properties();
+    m_model = cprp.get(libcamera::properties::Model);
+
+    std::cout << "Model " << m_model << " rot " << m_rotation;
 
     grabber.setOnData([&](libcamera::Request *request) {
         camera_queue.push(request);
@@ -143,7 +150,7 @@ void CameraRunner::Start() {
     });
 
     // TODO don't think we need this
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    // std::this_thread::sleep_for(std::chrono::seconds(2));
 
     grabber.startAndQueue();
 }
