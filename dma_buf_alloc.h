@@ -1,5 +1,4 @@
-#ifndef LIBCAMERA_MEME_DMA_BUF_ALLOC_H
-#define LIBCAMERA_MEME_DMA_BUF_ALLOC_H
+#pragma once
 
 #include <string>
 #include <cstddef>
@@ -13,5 +12,3 @@ public:
 private:
     int m_heap_fd;
 };
-
-#endif //LIBCAMERA_MEME_DMA_BUF_ALLOC_H

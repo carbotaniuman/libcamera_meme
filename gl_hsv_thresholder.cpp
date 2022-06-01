@@ -1,12 +1,12 @@
 #include "gl_hsv_thresholder.h"
+#include "headless_opengl.h"
 
 #include <EGL/eglext.h>
 #include <GLES2/gl2ext.h>
+#include <libdrm/drm_fourcc.h>
 
 #include <stdexcept>
 #include <iostream>
-
-#include <libdrm/drm_fourcc.h>
 
 #define GLERROR() glerror(__LINE__)
 #define EGLERROR() eglerror(__LINE__)
@@ -157,8 +157,6 @@ GLuint make_program(const char *vertex_source, const char *fragment_source) {
     return program;
 }
 
-#include "triangle.h"
-
 GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_height(height) {
     // auto display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     // EGLERROR();
@@ -216,13 +214,9 @@ GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_hei
     // }
     // EGLERROR();
     // m_surface = surface;
-    ShaderStatus status;
-    if(create(&status)) {
-        throw std::runtime_error("Couldn't create stuff");
-    }
+    ShaderStatus status = createHeadless("/dev/dri/card0");
     m_context = status.context;
     m_display = status.display;
-    m_surface = status.surface;
 }
 
 void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
@@ -328,7 +322,7 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
             framebuffer_fd = m_renderable.front();
             m_renderable.pop();
         } else {
-            std::cout << "lost framebuffer, skipping" << std::endl;
+            std::cout << "no framebuffer, skipping" << std::endl;
             return;
         }
     }

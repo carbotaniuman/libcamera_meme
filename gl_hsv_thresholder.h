@@ -1,8 +1,8 @@
-#ifndef LIBCAMERA_MEME_GL_HSV_THRESHOLDER_H
-#define LIBCAMERA_MEME_GL_HSV_THRESHOLDER_H
+#pragma once
 
 #include <array>
 #include <functional>
+#include <optional>
 #include <string>
 #include <queue>
 #include <utility>
@@ -35,7 +35,6 @@ private:
 
     EGLDisplay m_display;
     EGLContext m_context;
-    EGLSurface m_surface;
 
     std::unordered_map<int, GLuint> m_framebuffers; // (dma_buf fd, framebuffer)
     std::queue<int> m_renderable;
@@ -44,5 +43,3 @@ private:
     GLuint m_quad_vbo;
     GLuint m_program;
 };
-
-#endif //LIBCAMERA_MEME_GL_HSV_THRESHOLDER_H

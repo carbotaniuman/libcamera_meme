@@ -19,7 +19,6 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 static double approxRollingAverage (double avg, double new_sample) {
-
     avg -= avg / 50;
     avg += new_sample / 50;
 

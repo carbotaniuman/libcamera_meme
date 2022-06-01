@@ -1,5 +1,4 @@
-#ifndef LIBCAMERA_MEME_CAMERA_GRABBER_H
-#define LIBCAMERA_MEME_CAMERA_GRABBER_H
+#pragma once
 
 #include <libcamera/camera.h>
 #include <libcamera/framebuffer_allocator.h>
@@ -28,5 +27,3 @@ private:
     libcamera::FrameBufferAllocator m_buf_allocator;
     std::optional<std::function<void(libcamera::Request*)>> m_onData;
 };
-
-#endif //LIBCAMERA_MEME_CAMERA_GRABBER_H

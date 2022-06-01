@@ -17,21 +17,20 @@ pkg_check_modules(LIBCAMERA REQUIRED libcamera)
 find_package(JNI)
 if (JNI_FOUND)
     # Fixes odd AWT dependency
-    set (JNI_INCLUDE_DIRS ${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
-    message (STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
-endif()
+    set(JNI_INCLUDE_DIRS ${JAVA_INCLUDE_PATH} ${JAVA_INCLUDE_PATH2})
+    message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
+endif ()
 
 add_executable(libcamera_meme main.cpp concurrent_blocking_queue.h
-    camera_grabber.cpp dma_buf_alloc.cpp gl_hsv_thresholder.cpp libcamera_opengl_utility.cpp
-    triangle.c triangle.h
-    libcamera_jni.hpp
-    libcamera_jni.cpp
-    camera_manager.h
-    camera_manager.cpp
-    camera_runner.cpp
-    camera_runner.h
-)
+        camera_grabber.cpp dma_buf_alloc.cpp
+        gl_hsv_thresholder.cpp
+        libcamera_opengl_utility.cpp
+        libcamera_jni.cpp
+        camera_manager.cpp
+        camera_runner.cpp
+        headless_opengl.cpp
+        )
 target_include_directories(libcamera_meme PUBLIC ${OPENGL_INCLUDE_DIRS} ${LIBDRM_INCLUDE_DIRS} ${LIBCAMERA_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIRS} ${JNI_INCLUDE_DIRS})
+        ${OpenCV_INCLUDE_DIRS} ${JNI_INCLUDE_DIRS})
 target_link_libraries(libcamera_meme PUBLIC OpenGL::GL OpenGL::EGL Threads::Threads ${LIBCAMERA_LINK_LIBRARIES}
-    ${OpenCV_LIBS} ${LIBDRM_LINK_LIBRARIES} gbm)
+        ${OpenCV_LIBS} ${LIBDRM_LINK_LIBRARIES} gbm)
