@@ -7,13 +7,8 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <sys/mman.h>
-
-#include "dma_buf_alloc.h"
-#include "gl_hsv_thresholder.h"
-#include "camera_grabber.h"
-#include "libcamera_opengl_utility.h"
-#include "concurrent_blocking_queue.h"
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
@@ -27,28 +22,27 @@ static double approxRollingAverage (double avg, double new_sample) {
 
 
 CameraRunner::CameraRunner(int width, int height, int fps, const std::shared_ptr<libcamera::Camera> cam) 
-    : m_camera(cam), m_width(width), m_height(height), m_fps(fps) {}
+    : m_camera(cam), m_width(width), m_height(height), m_fps(fps),
+        grabber(m_camera, m_width, m_height),
+        thresholder(m_width, m_height),
+        allocer("/dev/dma_heap/linux,cma")
+    {
 
-void CameraRunner::Start() {
-    auto grabber = CameraGrabber(m_camera, m_width, m_height);
-    unsigned int stride = grabber.streamConfiguration().stride;
-
-    auto camera_queue = ConcurrentBlockingQueue<libcamera::Request *>();
     grabber.setOnData([&](libcamera::Request *request) {
         camera_queue.push(request);
     });
 
-    auto allocer = DmaBufAlloc("/dev/dma_heap/linux,cma");
-    std::vector<int> fds {
+    fds = {
             allocer.alloc_buf(m_width * m_height * 4),
             allocer.alloc_buf(m_width * m_height * 4),
             allocer.alloc_buf(m_width * m_height * 4)
     };
+}
 
-
-    auto gpu_queue = ConcurrentBlockingQueue<int>();
-    auto thresholder = GlHsvThresholder(m_width, m_height);
-    std::thread threshold([&]() {
+void CameraRunner::Start() {
+    unsigned int stride = grabber.streamConfiguration().stride;
+    
+    threshold = std::thread([&]() {
         thresholder.start(fds);
         auto colorspace = grabber.streamConfiguration().colorSpace.value();
 
@@ -91,7 +85,7 @@ void CameraRunner::Start() {
         }
     });
 
-    std::thread display([&]() {
+    display = std::thread([&]() {
         std::unordered_map<int, unsigned char *> mmaped;
 
         for (auto fd: fds) {
@@ -138,12 +132,18 @@ void CameraRunner::Start() {
             // cv::imshow("cam_color", color_mat);
             // cv::imshow("cam_single", threshold_mat);
             // cv::waitKey(1);
+            static int i = 0;
+            i++;
+            static char arr[50];
+            snprintf(arr,sizeof(arr),"color_%i.png", i);
+            cv::imwrite(arr, color_mat);
+            snprintf(arr,sizeof(arr),"thresh_%i.png", i);
+            cv::imwrite(arr, threshold_mat);
         }
     });
 
+    // TODO don't think we need this
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     grabber.startAndQueue();
-
-    while (true) {}
 }

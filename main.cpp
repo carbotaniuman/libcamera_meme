@@ -7,14 +7,7 @@ int main() {
 
     runner->Start();
 
-    return 0;
-
-    constexpr int width = 1920, height = 1080;
-
-    // for (int i = 0; i < 10; i++) {
-        // std::cout << "Waiting for 1 second" << std::endl;
-        // std::this_thread::sleep_for(std::chrono::seconds(1));
-    // }
+    while (true);
 
     return 0;
 }
