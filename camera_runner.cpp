@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <cstring>
+#include <latch>
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -49,6 +50,8 @@ CameraRunner::CameraRunner(int width, int height, int fps, const std::shared_ptr
 void CameraRunner::Start() {
     unsigned int stride = grabber.streamConfiguration().stride;
     
+    std::latch start_frame_grabber{2};
+
     threshold = std::thread([&]() {
         thresholder.start(fds);
         auto colorspace = grabber.streamConfiguration().colorSpace.value();
@@ -59,6 +62,7 @@ void CameraRunner::Start() {
 
         double gpuTimeAvgMs = 0;
 
+        start_frame_grabber.count_down();
         while (true) {
             auto request = camera_queue.pop();
 
@@ -110,6 +114,7 @@ void CameraRunner::Start() {
 
         double copyTimeAvgMs = 0;
 
+        start_frame_grabber.count_down();
         while (true) {
             auto fd = gpu_queue.pop();
             if (fd == -1) {
@@ -125,20 +130,12 @@ void CameraRunner::Start() {
                 threshold_out_buf[i] = input_ptr[i * 4 + 3];
             }
 
-            // pls don't optimize these writes out compiler
-            std::cout << reinterpret_cast<uint64_t>(threshold_out_buf) << " " << reinterpret_cast<uint64_t>(color_out_buf) << std::endl;
-
             thresholder.returnBuffer(fd);
 
             std::chrono::duration<double, std::milli> elapsedMillis = steady_clock::now() - begintime;
-            // if (elapsedMillis > 0.9ms) {
-                copyTimeAvgMs = approxRollingAverage(copyTimeAvgMs, elapsedMillis.count());
-                std::cout << "Copy: " << copyTimeAvgMs << std::endl;
-            // }
+            copyTimeAvgMs = approxRollingAverage(copyTimeAvgMs, elapsedMillis.count());
+            std::cout << "Copy: " << copyTimeAvgMs << std::endl;
 
-            // cv::imshow("cam_color", color_mat);
-            // cv::imshow("cam_single", threshold_mat);
-            // cv::waitKey(1);
             static int i = 0;
             i++;
             static char arr[50];
@@ -149,8 +146,7 @@ void CameraRunner::Start() {
         }
     });
 
-    // TODO don't think we need this
-    // std::this_thread::sleep_for(std::chrono::seconds(2));
+    start_frame_grabber.wait();
 
     grabber.startAndQueue();
 }
