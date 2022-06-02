@@ -95,7 +95,7 @@ void CameraGrabber::setControls(libcamera::Request *request) {
     controls.set(libcamera::controls::Brightness, m_settings.brightness); // -1 to 1, 0 means unchanged
     controls.set(libcamera::controls::Contrast, m_settings.contrast); // Nominal 1
     controls.set(libcamera::controls::Saturation, m_settings.saturation); // Nominal 1, 0 would be greyscale
-    controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(0), static_cast<int64_t>(0)}); // Set default to zero, we have specificed the exposure time
+    controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(m_settings.exposureTimeUs), static_cast<int64_t>(m_settings.exposureTimeUs)}); // Set default to zero, we have specificed the exposure time
 
     // Additionally, we can set crop regions and stuff
     // controls.set(libcamera::controls::DigitalGain, m_settings.digitalGain); // Digital gain, unknown range
