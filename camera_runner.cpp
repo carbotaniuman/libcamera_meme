@@ -64,6 +64,7 @@ void CameraRunner::Start() {
 
         start_frame_grabber.count_down();
         while (true) {
+            printf("Threshold thread!\n");
             auto request = camera_queue.pop();
 
             if (!request) {
@@ -113,9 +114,12 @@ void CameraRunner::Start() {
         unsigned char *color_out_buf = color_mat.data;
 
         double copyTimeAvgMs = 0;
+        double fpsTimeAvgMS = 0;
 
         start_frame_grabber.count_down();
+        auto lastTime = steady_clock::now();
         while (true) {
+            printf("Display thread!\n");
             auto fd = gpu_queue.pop();
             if (fd == -1) {
                 break;
@@ -138,11 +142,17 @@ void CameraRunner::Start() {
 
             static int i = 0;
             i++;
-            static char arr[50];
-            snprintf(arr,sizeof(arr),"color_%i.png", i);
-            cv::imwrite(arr, color_mat);
-            snprintf(arr,sizeof(arr),"thresh_%i.png", i);
-            cv::imwrite(arr, threshold_mat);
+            // static char arr[50];
+            // snprintf(arr,sizeof(arr),"color_%i.png", i);
+            // cv::imwrite(arr, color_mat);
+            // snprintf(arr,sizeof(arr),"thresh_%i.png", i);
+            // cv::imwrite(arr, threshold_mat);
+            
+            auto now = steady_clock::now();
+            std::chrono::duration<double, std::milli> elapsed = (now - lastTime);
+            fpsTimeAvgMS = approxRollingAverage(fpsTimeAvgMS, elapsed.count());
+            printf("Delta %.2f FPS: %.2f\n", fpsTimeAvgMS, 1000.0 / fpsTimeAvgMS);
+            lastTime = now;
         }
     });
 
