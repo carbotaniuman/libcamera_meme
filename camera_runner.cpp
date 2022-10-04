@@ -9,6 +9,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <utility>
 #include <sys/mman.h>
 
 #include <libcamera/property_ids.h>
@@ -24,15 +25,20 @@ static double approxRollingAverage (double avg, double new_sample) {
 }
 
 
-CameraRunner::CameraRunner(int width, int height, int fps, const std::shared_ptr<libcamera::Camera> cam) 
-    : m_camera(cam), m_width(width), m_height(height), m_fps(fps),
+CameraRunner::CameraRunner(int width, int height, int fps, std::shared_ptr<libcamera::Camera> cam)
+    : m_camera(std::move(cam)), m_width(width), m_height(height), m_fps(fps),
         grabber(m_camera, m_width, m_height),
         thresholder(m_width, m_height),
         allocer("/dev/dma_heap/linux,cma")
     {
 
     auto& cprp = m_camera->properties();
-    m_model = cprp.get(libcamera::properties::Model);
+    auto model = cprp.get(libcamera::properties::Model);
+    if (model) {
+        m_model = std::move(model.value());
+    } else {
+        m_model = "No Camera Found";
+    }
 
     std::cout << "Model " << m_model << " rot " << m_rotation;
 
@@ -47,7 +53,7 @@ CameraRunner::CameraRunner(int width, int height, int fps, const std::shared_ptr
     };
 }
 
-void CameraRunner::Start() {
+void CameraRunner::start() {
     unsigned int stride = grabber.streamConfiguration().stride;
     
     std::latch start_frame_grabber{2};

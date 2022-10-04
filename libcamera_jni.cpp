@@ -32,7 +32,7 @@ static_assert(sizeof(void *) <= sizeof(jlong));
 JNIEXPORT jstring
 Java_org_photonvision_raspi_LibCameraJNI_getSensorModelRaw(JNIEnv *env, jclass) {
   if(runner)
-    return env->NewStringUTF(runner->Model().c_str());
+    return env->NewStringUTF(runner->model().c_str());
   else 
     return env->NewStringUTF("");
 }
@@ -62,7 +62,7 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
     JNIEnv *, jclass) {
   if (runner) {
-    runner->Start();
+    runner->start();
     return true;
   }      
   return false;
@@ -82,43 +82,43 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setThreshold
     JNIEnv *env, jclass, jdouble hl, jdouble sl, jdouble vl, jdouble hu,
     jdouble su, jdouble vu) {
   if(!runner) return false;
-  runner->GetThresholder().setHsvThresholds(hl, sl, vl, hu, su, vu);
+  runner->getThresholder().setHsvThresholds(hl, sl, vl, hu, su, vu);
   return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setExposure(
     JNIEnv *env, jclass, jint exposure) {
   if(!runner) return false;
-  runner->GetCameraGrabber().GetCameraSettings().exposureTimeUs = exposure;
+  runner->getCameraGrabber().GetCameraSettings().exposureTimeUs = exposure;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setBrightness(
     JNIEnv *env, jclass, jdouble brightness) {
   if(!runner) return false;
-  runner->GetCameraGrabber().GetCameraSettings().brightness = brightness;
+  runner->getCameraGrabber().GetCameraSettings().brightness = brightness;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
     JNIEnv *env, jclass, jdouble red, jdouble blue) {
   if(!runner) return false;
-  runner->GetCameraGrabber().GetCameraSettings().awbRedGain = red;
-  runner->GetCameraGrabber().GetCameraSettings().awbBlueGain = blue;
+  runner->getCameraGrabber().GetCameraSettings().awbRedGain = red;
+  runner->getCameraGrabber().GetCameraSettings().awbBlueGain = blue;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(JNIEnv *env, jclass, jdouble analog) {
   if(!runner) return false;
-  runner->GetCameraGrabber().GetCameraSettings().analogGain = analog;
+  runner->getCameraGrabber().GetCameraSettings().analogGain = analog;
   return true;
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_photonvision_raspi_LibCameraJNI_setDigitalGain(JNIEnv *env, jclass, jdouble digital) {
   if(!runner) return false;
-  // runner->GetCameraGrabber().GetCameraSettings().digitalGain = digital;
+  // runner->getCameraGrabber().GetCameraSettings().digitalGain = digital;
   return true;
 }
 

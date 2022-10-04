@@ -12,17 +12,17 @@
 
 class CameraRunner {
 public:
-  CameraRunner(int width, int height, int fps, const std::shared_ptr<libcamera::Camera> cam);
+  CameraRunner(int width, int height, int fps, std::shared_ptr<libcamera::Camera> cam);
 
 
-  inline CameraGrabber& GetCameraGrabber() { return grabber; }
+  inline CameraGrabber& getCameraGrabber() { return grabber; }
 
-  void Start();
-  void Stop();
+  void start();
+  void stop();
 
-  inline const std::string& Model() { return m_model; }
+  inline const std::string& model() { return m_model; }
 
-  inline GlHsvThresholder& GetThresholder() { return thresholder; }
+  inline GlHsvThresholder& getThresholder() { return thresholder; }
 
 private:
   std::thread m_threshold;
