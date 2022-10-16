@@ -4,11 +4,16 @@
 #include <chrono>
 #include <iostream>
 #include <cstring>
+
+#ifdef __cpp_lib_latch
 #include <latch>
+using latch = std::latch;
+#else
+#include "latch.hpp"
+using latch = Latch;
+#endif
 
 #include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include <utility>
 #include <sys/mman.h>
 
@@ -56,7 +61,7 @@ CameraRunner::CameraRunner(int width, int height, int fps, std::shared_ptr<libca
 void CameraRunner::start() {
     unsigned int stride = grabber.streamConfiguration().stride;
     
-    std::latch start_frame_grabber{2};
+    latch start_frame_grabber{2};
 
     threshold = std::thread([&]() {
         thresholder.start(fds);
