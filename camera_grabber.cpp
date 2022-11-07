@@ -12,18 +12,26 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
         throw std::runtime_error("failed to acquire camera");
     }
 
+    std::cout <<"A" << std::endl;
+
     auto config = m_camera->generateConfiguration({libcamera::StreamRole::VideoRecording});
     config->at(0).size.width = width;
     config->at(0).size.height = height;
     config->transform = libcamera::Transform::Identity;
 
+    std::cout <<"B" << std::endl;
+
     if (config->validate() == libcamera::CameraConfiguration::Invalid) {
         throw std::runtime_error("failed to validate config");
     }
 
+    std::cout <<"C" << std::endl;
+
     if (m_camera->configure(config.get()) < 0) {
         throw std::runtime_error("failed to configure stream");
     }
+
+    std::cout <<"D" << std::endl;
 
     std::cout << config->at(0).toString() << std::endl;
 
@@ -32,6 +40,8 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
         throw std::runtime_error("failed to allocate buffers");
     }
     m_config = std::move(config);
+
+    std::cout <<"E" << std::endl;
 
     for (const auto &buffer: m_buf_allocator.buffers(stream)) {
         auto request = m_camera->createRequest();
@@ -52,6 +62,8 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
         auto memory = static_cast<const char *>(mmap(nullptr, len, PROT_READ, MAP_SHARED, fd, 0));
         m_mapped.emplace(fd, memory);
     }
+
+    std::cout << "F" << std::endl;
 
     m_camera->requestCompleted.connect(this, &CameraGrabber::requestComplete);
 }

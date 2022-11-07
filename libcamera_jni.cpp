@@ -52,11 +52,11 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera
 							  [](auto &cam) { return cam->id().find("/usb") != std::string::npos; });
 	cameras.erase(rem, cameras.end());
 
-	if (cameras.size() == 0) return 0;
+	if (cameras.empty()) return 0;
 
   // // Otherwise, just create the first camera left
   runner = new CameraRunner(width, height, fps, cameras[0]);
-  return runner != 0;
+  return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
