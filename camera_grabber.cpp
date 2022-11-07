@@ -6,8 +6,8 @@
 #include <libcamera/control_ids.h>
 #include <sys/mman.h>
 
-CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width, int height) : m_camera(std::move(camera)),
-                                                                                                 m_buf_allocator(m_camera) {
+CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width, int height) : m_buf_allocator(m_camera), m_camera(std::move(camera)),
+                                                                                                  {
     if (m_camera->acquire()) {
         throw std::runtime_error("failed to acquire camera");
     }

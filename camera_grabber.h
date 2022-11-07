@@ -37,9 +37,9 @@ private:
     std::map<int, const char *> m_mapped;
     void requestComplete(libcamera::Request *request);
 
+    libcamera::FrameBufferAllocator m_buf_allocator;
     std::shared_ptr<libcamera::Camera> m_camera;
     std::unique_ptr<libcamera::CameraConfiguration> m_config;
-    libcamera::FrameBufferAllocator m_buf_allocator;
     std::optional<std::function<void(libcamera::Request*)>> m_onData;
 
     CameraSettings m_settings;
