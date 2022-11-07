@@ -70,6 +70,7 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
 
 CameraGrabber::~CameraGrabber() {
     m_camera->release();
+    std::cout << "@@" << std::endl;
 }
 
 void CameraGrabber::requestComplete(libcamera::Request *request) {
