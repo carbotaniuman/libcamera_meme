@@ -13,6 +13,8 @@
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 
+#include "headless_opengl.h"
+
 class GlHsvThresholder {
 public:
     struct DmaBufPlaneData {
@@ -22,6 +24,8 @@ public:
     };
 
     explicit GlHsvThresholder(int width, int height);
+    ~GlHsvThresholder();
+
     void start(const std::vector<int>& output_buf_fds);
     void setOnComplete(std::function<void(int)> onComplete);
     void resetOnComplete();
@@ -55,6 +59,8 @@ private:
 
     GLuint m_quad_vbo;
     GLuint m_program;
+
+    ShaderStatus status;
 
     double m_hsvLower[3] = {0}; // Hue, sat, value, in [0,1]
     double m_hsvUpper[3] = {0}; // Hue, sat, value, in [0,1]

@@ -1,5 +1,4 @@
 #include "gl_hsv_thresholder.h"
-#include "headless_opengl.h"
 
 #include <EGL/eglext.h>
 #include <GLES2/gl2ext.h>
@@ -158,9 +157,17 @@ GLuint make_program(const char *vertex_source, const char *fragment_source) {
 }
 
 GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_height(height) {
-    ShaderStatus status = createHeadless({"/dev/dri/card1", "/dev/dri/card0"});
+    status = createHeadless({"/dev/dri/card1", "/dev/dri/card0"});
     m_context = status.context;
     m_display = status.display;
+}
+
+GlHsvThresholder::~GlHsvThresholder() {
+    if (!eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
+        throw std::runtime_error("failed to clear egl context");
+    }
+
+    destroyHeadless(status);
 }
 
 void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {

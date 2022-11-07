@@ -123,3 +123,10 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
 
     return ret;
 }
+
+void destroyHeadless(ShaderStatus status) {
+    eglDestroyContext(status.display, status.context);
+    eglTerminate(status.display);
+    gbm_device_destroy(status.gbmDevice);
+    close(status.gbmFd);
+}
