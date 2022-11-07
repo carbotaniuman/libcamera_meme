@@ -68,6 +68,10 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
     m_camera->requestCompleted.connect(this, &CameraGrabber::requestComplete);
 }
 
+CameraGrabber::~CameraGrabber() {
+    m_camera->release();
+}
+
 void CameraGrabber::requestComplete(libcamera::Request *request) {
     if (request->status() == libcamera::Request::RequestCancelled) {
         return;
@@ -129,7 +133,6 @@ void CameraGrabber::startAndQueue() {
 
 void CameraGrabber::stop() {
     m_camera->stop();
-    m_camera->release();
 }
 
 void CameraGrabber::setOnData(std::function<void(libcamera::Request *)> onData) {

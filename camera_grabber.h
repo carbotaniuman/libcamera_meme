@@ -21,6 +21,8 @@ struct CameraSettings {
 class CameraGrabber {
 public:
     explicit CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width, int height);
+    ~CameraGrabber();
+
     const libcamera::StreamConfiguration &streamConfiguration();
     void setOnData(std::function<void(libcamera::Request*)> onData);
     void resetOnData();
