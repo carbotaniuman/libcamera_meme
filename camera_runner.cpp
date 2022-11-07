@@ -60,6 +60,7 @@ CameraRunner::CameraRunner(int width, int height, int fps, std::shared_ptr<libca
 
 void CameraRunner::start() {
     unsigned int stride = grabber.streamConfiguration().stride;
+    running = true;
     
     latch start_frame_grabber{2};
 
@@ -104,7 +105,11 @@ void CameraRunner::start() {
                 gpuTimeAvgMs = approxRollingAverage(gpuTimeAvgMs, elapsedMillis.count());
                 std::cout << "GLProcess: " << gpuTimeAvgMs << std::endl;
             }
-            grabber.requeueRequest(request);
+
+            {
+                std::lock_guard<std::mutex> lock{camera_stop_mutex};
+                grabber.requeueRequest(request);
+            }
         }
     });
 
@@ -169,5 +174,24 @@ void CameraRunner::start() {
 
     start_frame_grabber.wait();
 
-    grabber.startAndQueue();
+    {
+        std::lock_guard<std::mutex> lock{camera_stop_mutex};
+        grabber.startAndQueue();
+    }
+}
+
+void CameraRunner::stop() {
+    // stop the camera
+    {
+        std::lock_guard<std::mutex> lock{camera_stop_mutex};
+        grabber.stop();
+    }
+
+    // push sentinel value to stop threshold thread
+    camera_queue.push(nullptr);
+    threshold.join();
+
+    // push sentinel value to stop display thread
+    gpu_queue.push(-1);
+    display.join();
 }

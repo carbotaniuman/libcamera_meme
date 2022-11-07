@@ -26,6 +26,7 @@ public:
     void resetOnData();
 
     void startAndQueue();
+    void stop();
     void requeueRequest(libcamera::Request *request);
 
     inline CameraSettings& GetCameraSettings() { return m_settings; }

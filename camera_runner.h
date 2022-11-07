@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <string>
 #include "camera_grabber.h"
 #include <thread>
@@ -37,6 +38,8 @@ private:
 
   std::vector<int> fds {};
 
+  std::mutex camera_stop_mutex;
+  std::atomic<bool> running;
   std::thread threshold;
   std::thread display;
 

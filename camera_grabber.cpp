@@ -115,6 +115,11 @@ void CameraGrabber::startAndQueue() {
     }
 }
 
+void CameraGrabber::stop() {
+    m_camera->stop();
+    m_camera->release();
+}
+
 void CameraGrabber::setOnData(std::function<void(libcamera::Request *)> onData) {
     m_onData = std::move(onData);
 }
