@@ -44,7 +44,7 @@ private:
   std::thread display;
 
   std::string m_model;
-  int32_t m_rotation;
+  int32_t m_rotation = 0;
 
   bool threshold_thread_run = true;
   bool display_thread_run = true;
