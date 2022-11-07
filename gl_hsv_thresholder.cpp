@@ -299,7 +299,7 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
             EGL_NONE
     };
 
-    std::cout << "testing fd fd " <<  std::to_string(fd) << std::endl;
+    std::cout << "testing fd fd " <<  std::to_string(yuv_plane_data[0].fd) << std::endl;
     auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
     EGLERROR();
     if (!image) {
