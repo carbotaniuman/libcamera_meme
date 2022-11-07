@@ -35,6 +35,9 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_createCamera
 JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
     JNIEnv *, jclass);
 
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_stopCamera(
+        JNIEnv *, jclass);
+
 /*
  * Class:     org_photonvision_raspi_LibCameraJNI
  * Method:    destroyCamera

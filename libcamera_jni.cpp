@@ -68,11 +68,20 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_startCamera(
   return false;
 }
 
+JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_stopCamera(
+        JNIEnv *, jclass) {
+    if (runner) {
+        runner->stop();
+        return true;
+    }
+    return false;
+}
+
+
 JNIEXPORT jboolean JNICALL
 Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(JNIEnv *env, jclass) {
   if(!runner) return false;
 
-    runner->stop();
     delete runner;
     return true;
 }

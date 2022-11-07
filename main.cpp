@@ -18,6 +18,7 @@ int main() {
 
     std::this_thread::sleep_for(3s);
 
+    Java_org_photonvision_raspi_LibCameraJNI_stopCamera(nullptr, nullptr);
     Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(nullptr, nullptr);
     Java_org_photonvision_raspi_LibCameraJNI_createCamera(nullptr, nullptr, 640, 480, 90);
     Java_org_photonvision_raspi_LibCameraJNI_startCamera(nullptr, nullptr);
