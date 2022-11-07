@@ -208,7 +208,6 @@ void GlHsvThresholder::start(const std::vector<int>& output_buf_fds) {
                 EGL_NONE
         };
         auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, image_attribs);
-        std::cout << "failed to import fd " <<  std::to_string(fd) << std::endl;
         EGLERROR();
         if (!image) {
             throw std::runtime_error("failed to import fd " + std::to_string(fd));
@@ -300,6 +299,7 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
             EGL_NONE
     };
 
+    std::cout << "testing fd fd " <<  std::to_string(fd) << std::endl;
     auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
     EGLERROR();
     if (!image) {
