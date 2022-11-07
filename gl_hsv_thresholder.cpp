@@ -163,10 +163,6 @@ GlHsvThresholder::GlHsvThresholder(int width, int height): m_width(width), m_hei
 }
 
 GlHsvThresholder::~GlHsvThresholder() {
-    if (!eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
-        throw std::runtime_error("failed to clear egl context");
-    }
-
     destroyHeadless(status);
 }
 
