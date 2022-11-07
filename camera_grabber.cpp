@@ -91,14 +91,16 @@ void CameraGrabber::requestComplete(libcamera::Request *request) {
 }
 
 void CameraGrabber::requeueRequest(libcamera::Request *request) {
-    // This resets all our controls
-    // https://github.com/kbingham/libcamera/blob/master/src/libcamera/request.cpp#L397
-    request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
+    if (running) {
+        // This resets all our controls
+        // https://github.com/kbingham/libcamera/blob/master/src/libcamera/request.cpp#L397
+        request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
 
-    setControls(request);
+        setControls(request);
 
-    if (m_camera->queueRequest(request) < 0) {
-        throw std::runtime_error("failed to queue request");
+        if (m_camera->queueRequest(request) < 0) {
+            throw std::runtime_error("failed to queue request");
+        }
     }
 }
 
@@ -120,6 +122,7 @@ void CameraGrabber::setControls(libcamera::Request *request) {
 }
 
 void CameraGrabber::startAndQueue() {
+    running = true;
     if (m_camera->start()) {
         throw std::runtime_error("failed to start camera");
     }
@@ -134,6 +137,7 @@ void CameraGrabber::startAndQueue() {
 }
 
 void CameraGrabber::stop() {
+    running = false;
     m_camera->stop();
 }
 
