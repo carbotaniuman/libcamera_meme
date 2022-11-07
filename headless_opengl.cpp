@@ -124,9 +124,15 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
     return ret;
 }
 
+#include <iostream>
+
 void destroyHeadless(ShaderStatus status) {
+    std::cout << "1" << std::endl;
     eglDestroyContext(status.display, status.context);
+    std::cout << "2" << std::endl;
     eglTerminate(status.display);
+    std::cout << "3" << std::endl;
     gbm_device_destroy(status.gbmDevice);
+    std::cout << "4" << std::endl;
     close(status.gbmFd);
 }
