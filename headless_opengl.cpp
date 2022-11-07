@@ -135,4 +135,5 @@ void destroyHeadless(ShaderStatus status) {
     gbm_device_destroy(status.gbmDevice);
     std::cout << "4" << std::endl;
     close(status.gbmFd);
+    std::cout << "5" << std::endl;
 }
