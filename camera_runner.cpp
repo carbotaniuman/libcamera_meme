@@ -58,6 +58,13 @@ CameraRunner::CameraRunner(int width, int height, int fps, std::shared_ptr<libca
     };
 }
 
+CameraRunner::~CameraRunner() {
+    for (auto i: fds) {
+        DmaBufAlloc::free_buf(i);
+    }
+    std::cout << "ZZ" << std::endl;
+}
+
 void CameraRunner::start() {
     unsigned int stride = grabber.streamConfiguration().stride;
     running = true;

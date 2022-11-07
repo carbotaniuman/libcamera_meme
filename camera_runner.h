@@ -14,7 +14,7 @@
 class CameraRunner {
 public:
   CameraRunner(int width, int height, int fps, std::shared_ptr<libcamera::Camera> cam);
-
+  ~CameraRunner();
 
   inline CameraGrabber& getCameraGrabber() { return grabber; }
 
