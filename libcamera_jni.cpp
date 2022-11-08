@@ -20,7 +20,7 @@
 #include "camera_manager.h"
 #include "camera_runner.h"
 
-static CameraRunner *runner = NULL;
+static CameraRunner *runner = nullptr;
 
 extern "C" {
 

@@ -33,13 +33,15 @@ public:
 
     inline CameraSettings& GetCameraSettings() { return m_settings; }
 private:
-    std::map<int, const char *> m_mapped;
     void requestComplete(libcamera::Request *request);
 
+    // The `FrameBufferAllocator` must be first here as it must be
+    // destroyed last, or else we get fun UAFs for some reason...
     libcamera::FrameBufferAllocator m_buf_allocator;
     std::vector<std::unique_ptr<libcamera::Request>> m_requests;
     std::shared_ptr<libcamera::Camera> m_camera;
     std::unique_ptr<libcamera::CameraConfiguration> m_config;
+
     std::optional<std::function<void(libcamera::Request*)>> m_onData;
 
     CameraSettings m_settings;

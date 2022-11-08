@@ -1,7 +1,6 @@
 #include "headless_opengl.h"
 #include "glerror.h"
 
-#include <cstdlib>
 #include <fcntl.h>
 #include <gbm.h>
 #include <unistd.h>
@@ -81,9 +80,9 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
 
     EGLint count;
     EGLint numConfigs;
-    eglGetConfigs(display, NULL, 0, &count);
+    eglGetConfigs(display, nullptr, 0, &count);
     EGLERROR();
-    EGLConfig *configs = new EGLConfig[count];
+    auto *configs = new EGLConfig[count];
 
     if (!eglChooseConfig(display, configAttribs, configs, count, &numConfigs)) {
         eglTerminate(display);
@@ -124,16 +123,9 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
     return ret;
 }
 
-#include <iostream>
-
 void destroyHeadless(ShaderStatus status) {
-    std::cout << "1" << std::endl;
     eglDestroyContext(status.display, status.context);
-    std::cout << "2" << std::endl;
     eglTerminate(status.display);
-    std::cout << "3" << std::endl;
     gbm_device_destroy(status.gbmDevice);
-    std::cout << "4" << std::endl;
     close(status.gbmFd);
-    std::cout << "5" << std::endl;
 }

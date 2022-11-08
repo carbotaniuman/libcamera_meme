@@ -6,9 +6,9 @@
 class DmaBufAlloc {
 public:
     explicit DmaBufAlloc(const std::string& heap_name);
-    int alloc_buf(std::size_t len);
+    ~DmaBufAlloc();
 
-    static void free_buf(int fd);
+    int alloc_buf_fd(std::size_t len);
 private:
     int m_heap_fd;
 };

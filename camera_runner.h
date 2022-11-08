@@ -31,6 +31,7 @@ private:
   int m_width, m_height, m_fps;
 
   CameraGrabber grabber;
+
   ConcurrentBlockingQueue<libcamera::Request *> camera_queue {};
   ConcurrentBlockingQueue<int> gpu_queue {};
   GlHsvThresholder thresholder;
@@ -39,13 +40,10 @@ private:
   std::vector<int> fds {};
 
   std::mutex camera_stop_mutex;
-  std::atomic<bool> running;
+
   std::thread threshold;
   std::thread display;
 
   std::string m_model;
   int32_t m_rotation = 0;
-
-  bool threshold_thread_run = true;
-  bool display_thread_run = true;
 };

@@ -1,6 +1,7 @@
 #ifndef LIBCAMERA_MEME_CONCURRENT_BLOCKING_QUEUE_H
 #define LIBCAMERA_MEME_CONCURRENT_BLOCKING_QUEUE_H
 
+#include <optional>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
@@ -23,6 +24,17 @@ public:
     T pop() {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cond.wait(lock, [&]{ return !m_queue.empty(); });
+
+        auto item = std::move(m_queue.front());
+        m_queue.pop();
+        return item;
+    }
+
+    std::optional<T> try_pop() {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        if (m_queue.empty()) {
+            return nullptr;
+        }
 
         auto item = std::move(m_queue.front());
         m_queue.pop();

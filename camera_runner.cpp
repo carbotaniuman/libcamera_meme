@@ -45,30 +45,28 @@ CameraRunner::CameraRunner(int width, int height, int fps, std::shared_ptr<libca
         m_model = "No Camera Found";
     }
 
-    std::cout << "Model " << m_model << " rot " << m_rotation;
+    std::cout << "Model " << m_model << " rot " << m_rotation << std::endl;
 
     grabber.setOnData([&](libcamera::Request *request) {
         camera_queue.push(request);
     });
 
     fds = {
-            allocer.alloc_buf(m_width * m_height * 4),
-            allocer.alloc_buf(m_width * m_height * 4),
-            allocer.alloc_buf(m_width * m_height * 4)
+            allocer.alloc_buf_fd(m_width * m_height * 4),
+            allocer.alloc_buf_fd(m_width * m_height * 4),
+            allocer.alloc_buf_fd(m_width * m_height * 4)
     };
 }
 
 CameraRunner::~CameraRunner() {
     for (auto i: fds) {
-        DmaBufAlloc::free_buf(i);
+        close(i);
     }
-    std::cout << "ZZ" << std::endl;
 }
 
 void CameraRunner::start() {
     unsigned int stride = grabber.streamConfiguration().stride;
-    running = true;
-    
+
     latch start_frame_grabber{2};
 
     threshold = std::thread([&]() {
@@ -163,8 +161,6 @@ void CameraRunner::start() {
             copyTimeAvgMs = approxRollingAverage(copyTimeAvgMs, elapsedMillis.count());
             std::cout << "Copy: " << copyTimeAvgMs << std::endl;
 
-            static int i = 0;
-            i++;
             // static char arr[50];
             // snprintf(arr,sizeof(arr),"color_%i.png", i);
             // cv::imwrite(arr, color_mat);
@@ -176,6 +172,10 @@ void CameraRunner::start() {
             fpsTimeAvgMS = approxRollingAverage(fpsTimeAvgMS, elapsed.count());
             printf("Delta %.2f FPS: %.2f\n", fpsTimeAvgMS, 1000.0 / fpsTimeAvgMS);
             lastTime = now;
+        }
+
+        for (const auto &[fd, pointer] : mmaped) {
+            munmap(pointer, m_width * m_height * 4);
         }
     });
 
