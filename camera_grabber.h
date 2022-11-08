@@ -8,7 +8,7 @@
 #include <optional>
 
 struct CameraSettings {
-    int32_t exposureTimeUs = 50000;
+    int32_t exposureTimeUs = 10000;
     float analogGain = 2;
     float brightness = 0.0;
     float contrast = 1;
