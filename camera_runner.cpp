@@ -53,7 +53,7 @@ CameraRunner::CameraRunner(int width, int height, int fps,
            allocer.alloc_buf_fd(m_width * m_height * 4)};
 
     for (int i = 0; i < 5; i++) {
-        m_buffered.push(MatPair{width, height});
+        m_buffered.push(std::make_unique<uint8_t[]>(m_width * m_height * 4));
     }
 }
 
@@ -156,11 +156,11 @@ void CameraRunner::start() {
                 std::cout << "No more buffers left! Creating new buffer, this "
                              "may lead to OOM conditions."
                           << std::endl;
-                mat_pair = MatPair{m_width, m_height};
+                mat_pair = std::make_unique<uint8_t[]>(m_width * m_height * 4);
             }
 
-            unsigned char *threshold_out_buf = mat_pair.value().threshold.data;
-            unsigned char *color_out_buf = mat_pair.value().color.data;
+            uint8_t *threshold_out_buf = mat_pair.value().get();
+            uint8_t *color_out_buf = mat_pair.value().get() + (m_width * m_height);
 
             auto begin_time = steady_clock::now();
             auto input_ptr = mmaped.at(fd);
@@ -224,4 +224,4 @@ void CameraRunner::stop() {
     display.join();
 }
 
-void CameraRunner::requeue_mat(MatPair mat) { m_buffered.push(std::move(mat)); }
+void CameraRunner::requeue_mat(std::unique_ptr<uint8_t[]> mat) { m_buffered.push(std::move(mat)); }

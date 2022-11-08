@@ -14,14 +14,6 @@
 
 #include <opencv2/core.hpp>
 
-struct MatPair {
-    cv::Mat color;
-    cv::Mat threshold;
-
-    explicit MatPair(int width, int height)
-        : color(height, width, CV_8UC3), threshold(height, width, CV_8UC1) {}
-};
-
 // Note: destructing this class without calling `stop` if `start` was called
 // is undefined behavior.
 class CameraRunner {
@@ -42,19 +34,24 @@ class CameraRunner {
     void start();
     void stop();
 
+    // The memory layout of frames is as follows:
+    // [ m_width * m_height thresholded frame ][ m_width * m_height * 3 color frame ]
+    // the two chunks of data are directly adjacent in memory, and the unique_ptr points
+    // to the start of the thresholded frame
+
     // Requeue a frame we have received from `outgoing`. Reusing a frame
     // intended for one camera resolution (width x height) for another
     // resolution will lead to undefined behavior. This function expects
     // exclusive access to the two `cv::Mat`s contained in the `MatPair`.
-    void requeue_mat(MatPair mat);
+    void requeue_mat(std::unique_ptr<uint8_t[]> mat);
 
     // Note: this is public but is a footgun. Destructing this class while a
     // thread is blocked on this waiting for a frame is UB.
     // TODO: consider making this a shared pointer to remove this footgun
-    ConcurrentBlockingQueue<MatPair> outgoing;
+    ConcurrentBlockingQueue<std::unique_ptr<uint8_t[]>> outgoing;
 
   private:
-    ConcurrentBlockingQueue<MatPair> m_buffered;
+    ConcurrentBlockingQueue<std::unique_ptr<uint8_t[]>> m_buffered;
 
     std::thread m_threshold;
     std::shared_ptr<libcamera::Camera> m_camera;
