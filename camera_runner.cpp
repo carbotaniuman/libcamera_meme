@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <cstring>
+#include <utility>
 
 #ifdef __cpp_lib_latch
 #include <latch>
@@ -14,8 +15,8 @@ using latch = Latch;
 #endif
 
 #include <opencv2/core.hpp>
-#include <utility>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include <libcamera/property_ids.h>
 
