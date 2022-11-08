@@ -32,7 +32,7 @@ template <typename T> class ConcurrentBlockingQueue {
     std::optional<T> try_pop() {
         std::unique_lock<std::mutex> lock(m_mutex);
         if (m_queue.empty()) {
-            return nullptr;
+            return std::nullopt;
         }
 
         auto item = std::move(m_queue.front());

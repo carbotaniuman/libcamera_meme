@@ -97,7 +97,7 @@ Java_org_photonvision_raspi_LibCameraJNI_setThresholds(JNIEnv *env, jclass,
                                                        jdouble su, jdouble vu) {
     if (!runner)
         return false;
-    runner->getThresholder().setHsvThresholds(hl, sl, vl, hu, su, vu);
+    runner->thresholder().setHsvThresholds(hl, sl, vl, hu, su, vu);
     return true;
 }
 
@@ -105,7 +105,7 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setExposure(
     JNIEnv *env, jclass, jint exposure) {
     if (!runner)
         return false;
-    runner->getCameraGrabber().GetCameraSettings().exposureTimeUs = exposure;
+    runner->cameraGrabber().cameraSettings().exposureTimeUs = exposure;
     return true;
 }
 
@@ -114,7 +114,7 @@ Java_org_photonvision_raspi_LibCameraJNI_setBrightness(JNIEnv *env, jclass,
                                                        jdouble brightness) {
     if (!runner)
         return false;
-    runner->getCameraGrabber().GetCameraSettings().brightness = brightness;
+    runner->cameraGrabber().cameraSettings().brightness = brightness;
     return true;
 }
 
@@ -122,8 +122,8 @@ JNIEXPORT jboolean JNICALL Java_org_photonvision_raspi_LibCameraJNI_setAwbGain(
     JNIEnv *env, jclass, jdouble red, jdouble blue) {
     if (!runner)
         return false;
-    runner->getCameraGrabber().GetCameraSettings().awbRedGain = red;
-    runner->getCameraGrabber().GetCameraSettings().awbBlueGain = blue;
+    runner->cameraGrabber().cameraSettings().awbRedGain = red;
+    runner->cameraGrabber().cameraSettings().awbBlueGain = blue;
     return true;
 }
 
@@ -132,7 +132,7 @@ Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(JNIEnv *env, jclass,
                                                        jdouble analog) {
     if (!runner)
         return false;
-    runner->getCameraGrabber().GetCameraSettings().analogGain = analog;
+    runner->cameraGrabber().cameraSettings().analogGain = analog;
     return true;
 }
 
@@ -141,7 +141,7 @@ Java_org_photonvision_raspi_LibCameraJNI_setDigitalGain(JNIEnv *env, jclass,
                                                         jdouble digital) {
     if (!runner)
         return false;
-    // runner->getCameraGrabber().GetCameraSettings().digitalGain = digital;
+    // runner->cameraGrabber().cameraSettings().digitalGain = digital;
     return true;
 }
 

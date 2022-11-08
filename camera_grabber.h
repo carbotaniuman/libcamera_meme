@@ -28,11 +28,13 @@ class CameraGrabber {
     void setOnData(std::function<void(libcamera::Request *)> onData);
     void resetOnData();
 
+    inline CameraSettings &cameraSettings() { return m_settings; }
+
+    // Note: these 3 functions must be protected by mutual exclusion.
+    // Failure to do so will result in UB.
     void startAndQueue();
     void stop();
     void requeueRequest(libcamera::Request *request);
-
-    inline CameraSettings &GetCameraSettings() { return m_settings; }
 
   private:
     void requestComplete(libcamera::Request *request);

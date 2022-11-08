@@ -23,8 +23,12 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 static double approxRollingAverage(double avg, double new_sample) {
-    avg -= avg / 50;
-    avg += new_sample / 50;
+    if (avg == 0.0) {
+        avg = new_sample;
+    } else {
+        avg -= avg / 50;
+        avg += new_sample / 50;
+    }
 
     return avg;
 }
@@ -32,7 +36,7 @@ static double approxRollingAverage(double avg, double new_sample) {
 CameraRunner::CameraRunner(int width, int height, int fps,
                            std::shared_ptr<libcamera::Camera> cam)
     : m_camera(std::move(cam)), m_width(width), m_height(height), m_fps(fps),
-      grabber(m_camera, m_width, m_height), thresholder(m_width, m_height),
+      grabber(m_camera, m_width, m_height), m_thresholder(m_width, m_height),
       allocer("/dev/dma_heap/linux,cma") {
 
     auto &cprp = m_camera->properties();
@@ -51,6 +55,10 @@ CameraRunner::CameraRunner(int width, int height, int fps,
     fds = {allocer.alloc_buf_fd(m_width * m_height * 4),
            allocer.alloc_buf_fd(m_width * m_height * 4),
            allocer.alloc_buf_fd(m_width * m_height * 4)};
+
+    for (int i = 0; i < 3; i++) {
+        m_buffered.push(MatPair{width, height});
+    }
 }
 
 CameraRunner::~CameraRunner() {
@@ -65,10 +73,10 @@ void CameraRunner::start() {
     latch start_frame_grabber{2};
 
     threshold = std::thread([&]() {
-        thresholder.start(fds);
+        m_thresholder.start(fds);
         auto colorspace = grabber.streamConfiguration().colorSpace.value();
 
-        thresholder.setOnComplete([&](int fd) { gpu_queue.push(fd); });
+        m_thresholder.setOnComplete([&](int fd) { gpu_queue.push(fd); });
 
         double gpuTimeAvgMs = 0;
 
@@ -95,8 +103,9 @@ void CameraRunner::start() {
             }};
 
             auto begintime = steady_clock::now();
-            thresholder.testFrame(yuv_data, encodingFromColorspace(colorspace),
-                                  rangeFromColorspace(colorspace));
+            m_thresholder.testFrame(yuv_data,
+                                    encodingFromColorspace(colorspace),
+                                    rangeFromColorspace(colorspace));
 
             std::chrono::duration<double, std::milli> elapsedMillis =
                 steady_clock::now() - begintime;
@@ -125,13 +134,8 @@ void CameraRunner::start() {
             mmaped.emplace(fd, static_cast<unsigned char *>(mmap_ptr));
         }
 
-        cv::Mat threshold_mat(m_height, m_width, CV_8UC1);
-        unsigned char *threshold_out_buf = threshold_mat.data;
-        cv::Mat color_mat(m_height, m_width, CV_8UC3);
-        unsigned char *color_out_buf = color_mat.data;
-
         double copyTimeAvgMs = 0;
-        double fpsTimeAvgMS = 0;
+        double fpsTimeAvgMs = 0;
 
         start_frame_grabber.count_down();
         auto lastTime = steady_clock::now();
@@ -142,7 +146,22 @@ void CameraRunner::start() {
                 break;
             }
 
-            auto begintime = steady_clock::now();
+            auto mat_pair = m_buffered.try_pop();
+            if (!mat_pair) {
+                mat_pair = outgoing.try_pop();
+            }
+
+            if (!mat_pair) {
+                std::cout << "No more buffers left! Creating new buffer, this "
+                             "may lead to OOM conditions."
+                          << std::endl;
+                mat_pair = MatPair{m_width, m_height};
+            }
+
+            unsigned char *threshold_out_buf = mat_pair.value().threshold.data;
+            unsigned char *color_out_buf = mat_pair.value().color.data;
+
+            auto begin_time = steady_clock::now();
             auto input_ptr = mmaped.at(fd);
             int bound = m_width * m_height;
 
@@ -151,10 +170,10 @@ void CameraRunner::start() {
                 threshold_out_buf[i] = input_ptr[i * 4 + 3];
             }
 
-            thresholder.returnBuffer(fd);
+            m_thresholder.returnBuffer(fd);
 
             std::chrono::duration<double, std::milli> elapsedMillis =
-                steady_clock::now() - begintime;
+                steady_clock::now() - begin_time;
             copyTimeAvgMs =
                 approxRollingAverage(copyTimeAvgMs, elapsedMillis.count());
             std::cout << "Copy: " << copyTimeAvgMs << std::endl;
@@ -168,9 +187,9 @@ void CameraRunner::start() {
             auto now = steady_clock::now();
             std::chrono::duration<double, std::milli> elapsed =
                 (now - lastTime);
-            fpsTimeAvgMS = approxRollingAverage(fpsTimeAvgMS, elapsed.count());
-            printf("Delta %.2f FPS: %.2f\n", fpsTimeAvgMS,
-                   1000.0 / fpsTimeAvgMS);
+            fpsTimeAvgMs = approxRollingAverage(fpsTimeAvgMs, elapsed.count());
+            printf("Delta %.2f FPS: %.2f\n", fpsTimeAvgMs,
+                   1000.0 / fpsTimeAvgMs);
             lastTime = now;
         }
 
@@ -202,3 +221,5 @@ void CameraRunner::stop() {
     gpu_queue.push(-1);
     display.join();
 }
+
+void CameraRunner::requeue_mat(MatPair mat) { m_buffered.push(std::move(mat)); }

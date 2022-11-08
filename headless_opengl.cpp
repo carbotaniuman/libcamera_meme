@@ -38,7 +38,7 @@ static const EGLint configAttribs[] = {EGL_RED_SIZE,
 static const EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2,
                                         EGL_NONE};
 
-ShaderStatus createHeadless(const std::vector<std::string> &paths) {
+HeadlessData createHeadless(const std::vector<std::string> &paths) {
     int device = -1;
     for (const auto &path : paths) {
         device = open(path.c_str(), O_RDWR | O_CLOEXEC);
@@ -112,7 +112,7 @@ ShaderStatus createHeadless(const std::vector<std::string> &paths) {
 
     delete[] configs;
 
-    ShaderStatus ret{.gbmFd = device,
+    HeadlessData ret{.gbmFd = device,
                      .gbmDevice = gbmDevice,
                      .display = display,
                      .context = context};
@@ -120,7 +120,7 @@ ShaderStatus createHeadless(const std::vector<std::string> &paths) {
     return ret;
 }
 
-void destroyHeadless(ShaderStatus status) {
+void destroyHeadless(HeadlessData status) {
     eglDestroyContext(status.display, status.context);
     eglTerminate(status.display);
     gbm_device_destroy(status.gbmDevice);

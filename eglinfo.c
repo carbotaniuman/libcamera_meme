@@ -45,7 +45,7 @@ struct gl_limit limits[] = {
 int main(int argc, char ** argv)
 {
 
-    struct ShaderStatus status;
+    struct HeadlessData status;
 create(&status);
     
     EGLDisplay display = status.display;

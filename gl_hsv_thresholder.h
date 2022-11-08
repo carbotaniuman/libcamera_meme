@@ -63,7 +63,7 @@ class GlHsvThresholder {
     GLuint m_quad_vbo;
     GLuint m_program;
 
-    ShaderStatus status;
+    HeadlessData status;
 
     double m_hsvLower[3] = {0}; // Hue, sat, value, in [0,1]
     double m_hsvUpper[3] = {0}; // Hue, sat, value, in [0,1]

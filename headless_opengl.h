@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-struct ShaderStatus {
+struct HeadlessData {
     int gbmFd;
     struct gbm_device *gbmDevice;
 
@@ -13,5 +13,5 @@ struct ShaderStatus {
     EGLContext context;
 };
 
-ShaderStatus createHeadless(const std::vector<std::string> &paths);
-void destroyHeadless(ShaderStatus status);
+HeadlessData createHeadless(const std::vector<std::string> &paths);
+void destroyHeadless(HeadlessData status);
