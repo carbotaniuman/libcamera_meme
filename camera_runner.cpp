@@ -23,12 +23,8 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 static double approxRollingAverage(double avg, double new_sample) {
-    if (avg == 0.0) {
-        avg = new_sample / 50;
-    } else {
-        avg -= avg / 50;
-        avg += new_sample / 50;
-    }
+    avg -= avg / 50;
+    avg += new_sample / 50;
 
     return avg;
 }
