@@ -56,7 +56,7 @@ CameraRunner::CameraRunner(int width, int height, int fps,
            allocer.alloc_buf_fd(m_width * m_height * 4),
            allocer.alloc_buf_fd(m_width * m_height * 4)};
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 5; i++) {
         m_buffered.push(MatPair{width, height});
     }
 }
@@ -147,6 +147,11 @@ void CameraRunner::start() {
             }
 
             auto mat_pair = m_buffered.try_pop();
+
+            // If we have no more of our own buffers, try stealing the user
+            // buffers. Hopefully we don't steal the last buffer that the user
+            // was waiting on due to a race, but we really should have enough
+            // buffers that this isn't an issue.
             if (!mat_pair) {
                 mat_pair = outgoing.try_pop();
             }
@@ -171,6 +176,7 @@ void CameraRunner::start() {
             }
 
             m_thresholder.returnBuffer(fd);
+            outgoing.push(std::move(mat_pair.value()));
 
             std::chrono::duration<double, std::milli> elapsedMillis =
                 steady_clock::now() - begin_time;
