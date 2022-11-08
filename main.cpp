@@ -11,7 +11,6 @@ int main() {
     Java_org_photonvision_raspi_LibCameraJNI_createCamera(nullptr, nullptr, 1920, 1080, 30);
     Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(nullptr, nullptr);
     Java_org_photonvision_raspi_LibCameraJNI_createCamera(nullptr, nullptr, 1920, 1080, 30);
-    Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(nullptr, nullptr);
     Java_org_photonvision_raspi_LibCameraJNI_startCamera(nullptr, nullptr);
 
     using namespace std::chrono_literals;
