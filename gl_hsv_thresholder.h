@@ -2,21 +2,21 @@
 
 #include <array>
 #include <functional>
-#include <optional>
-#include <string>
-#include <queue>
-#include <utility>
 #include <mutex>
+#include <optional>
+#include <queue>
+#include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include <GLES2/gl2.h>
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
 
 #include "headless_opengl.h"
 
 class GlHsvThresholder {
-public:
+  public:
     struct DmaBufPlaneData {
         int fd;
         EGLint offset;
@@ -26,16 +26,18 @@ public:
     explicit GlHsvThresholder(int width, int height);
     ~GlHsvThresholder();
 
-    void start(const std::vector<int>& output_buf_fds);
+    void start(const std::vector<int> &output_buf_fds);
     void setOnComplete(std::function<void(int)> onComplete);
     void resetOnComplete();
 
     void returnBuffer(int fd);
-    void testFrame(const std::array<GlHsvThresholder::DmaBufPlaneData, 3>& yuv_plane_data, EGLint encoding, EGLint range);
+    void testFrame(
+        const std::array<GlHsvThresholder::DmaBufPlaneData, 3> &yuv_plane_data,
+        EGLint encoding, EGLint range);
 
     /**
      * @brief Set the Hsv Thresholds range, on [0..1]
-     * 
+     *
      * @param hl Lower hue
      * @param sl Sat lower
      * @param vl Value lower
@@ -43,9 +45,10 @@ public:
      * @param su Sat Upper
      * @param vu Value Upper
      */
-    void setHsvThresholds(double hl, double sl, double vl, double hu, double su, double vu);
+    void setHsvThresholds(double hl, double sl, double vl, double hu, double su,
+                          double vu);
 
-private:
+  private:
     int m_width;
     int m_height;
     std::optional<std::function<void(int)>> m_onComplete;

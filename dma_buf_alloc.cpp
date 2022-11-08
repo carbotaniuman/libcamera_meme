@@ -17,9 +17,7 @@ DmaBufAlloc::DmaBufAlloc(const std::string &heap_name) {
     m_heap_fd = heap_fd;
 }
 
-DmaBufAlloc::~DmaBufAlloc() {
-    close(m_heap_fd);
-}
+DmaBufAlloc::~DmaBufAlloc() { close(m_heap_fd); }
 
 int DmaBufAlloc::alloc_buf_fd(std::size_t len) {
     struct dma_heap_allocation_data alloc = {};

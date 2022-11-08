@@ -13,5 +13,5 @@ struct ShaderStatus {
     EGLContext context;
 };
 
-ShaderStatus createHeadless(const std::vector<std::string>& paths);
+ShaderStatus createHeadless(const std::vector<std::string> &paths);
 void destroyHeadless(ShaderStatus status);

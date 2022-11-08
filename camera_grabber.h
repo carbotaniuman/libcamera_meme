@@ -3,8 +3,8 @@
 #include <libcamera/camera.h>
 #include <libcamera/framebuffer_allocator.h>
 
-#include <memory>
 #include <functional>
+#include <memory>
 #include <optional>
 
 struct CameraSettings {
@@ -19,20 +19,22 @@ struct CameraSettings {
 };
 
 class CameraGrabber {
-public:
-    explicit CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width, int height);
+  public:
+    explicit CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width,
+                           int height);
     ~CameraGrabber();
 
     const libcamera::StreamConfiguration &streamConfiguration();
-    void setOnData(std::function<void(libcamera::Request*)> onData);
+    void setOnData(std::function<void(libcamera::Request *)> onData);
     void resetOnData();
 
     void startAndQueue();
     void stop();
     void requeueRequest(libcamera::Request *request);
 
-    inline CameraSettings& GetCameraSettings() { return m_settings; }
-private:
+    inline CameraSettings &GetCameraSettings() { return m_settings; }
+
+  private:
     void requestComplete(libcamera::Request *request);
 
     // The `FrameBufferAllocator` must be first here as it must be
@@ -42,10 +44,10 @@ private:
     std::shared_ptr<libcamera::Camera> m_camera;
     std::unique_ptr<libcamera::CameraConfiguration> m_config;
 
-    std::optional<std::function<void(libcamera::Request*)>> m_onData;
+    std::optional<std::function<void(libcamera::Request *)>> m_onData;
 
     CameraSettings m_settings;
     bool running = false;
 
-    void setControls(libcamera::Request* request);
+    void setControls(libcamera::Request *request);
 };

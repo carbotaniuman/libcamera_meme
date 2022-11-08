@@ -11,11 +11,10 @@
 // https://www.raspberrypi.org/forums/viewtopic.php?t=243707#p1499181
 //
 // I am not the original author of this code, I have only modified it.
-static int matchConfigToVisual(EGLDisplay display, EGLint visualId, EGLConfig *configs, int count)
-{
+static int matchConfigToVisual(EGLDisplay display, EGLint visualId,
+                               EGLConfig *configs, int count) {
     EGLint id;
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
         if (!eglGetConfigAttrib(display, configs[i], EGL_NATIVE_VISUAL_ID, &id))
             continue;
         if (id == visualId)
@@ -24,24 +23,24 @@ static int matchConfigToVisual(EGLDisplay display, EGLint visualId, EGLConfig *c
     return -1;
 }
 
-static const EGLint configAttribs[] = {
-        EGL_RED_SIZE, 8,
-        EGL_GREEN_SIZE, 8,
-        EGL_BLUE_SIZE, 8,
-        EGL_DEPTH_SIZE, 8,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-        EGL_NONE
-};
+static const EGLint configAttribs[] = {EGL_RED_SIZE,
+                                       8,
+                                       EGL_GREEN_SIZE,
+                                       8,
+                                       EGL_BLUE_SIZE,
+                                       8,
+                                       EGL_DEPTH_SIZE,
+                                       8,
+                                       EGL_RENDERABLE_TYPE,
+                                       EGL_OPENGL_ES2_BIT,
+                                       EGL_NONE};
 
-static const EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-};
+static const EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2,
+                                        EGL_NONE};
 
-ShaderStatus createHeadless(const std::vector<std::string>& paths)
-{
+ShaderStatus createHeadless(const std::vector<std::string> &paths) {
     int device = -1;
-    for (const auto &path: paths) {
+    for (const auto &path : paths) {
         device = open(path.c_str(), O_RDWR | O_CLOEXEC);
         if (device != -1) {
             break;
@@ -93,17 +92,17 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
 
     // I am not exactly sure why the EGL config must match the GBM format.
     // But it works!
-    int configIndex = matchConfigToVisual(display, GBM_FORMAT_XRGB8888, configs, numConfigs);
-    if (configIndex < 0)
-    {
+    int configIndex =
+        matchConfigToVisual(display, GBM_FORMAT_XRGB8888, configs, numConfigs);
+    if (configIndex < 0) {
         eglTerminate(display);
         gbm_device_destroy(gbmDevice);
         close(device);
         EGLERROR();
     }
 
-    EGLContext context =
-            eglCreateContext(display, configs[configIndex], EGL_NO_CONTEXT, contextAttribs);
+    EGLContext context = eglCreateContext(display, configs[configIndex],
+                                          EGL_NO_CONTEXT, contextAttribs);
     if (context == EGL_NO_CONTEXT) {
         eglTerminate(display);
         gbm_device_destroy(gbmDevice);
@@ -113,12 +112,10 @@ ShaderStatus createHeadless(const std::vector<std::string>& paths)
 
     delete[] configs;
 
-    ShaderStatus ret {
-            .gbmFd = device,
-            .gbmDevice = gbmDevice,
-            .display = display,
-            .context = context
-    };
+    ShaderStatus ret{.gbmFd = device,
+                     .gbmDevice = gbmDevice,
+                     .display = display,
+                     .context = context};
 
     return ret;
 }

@@ -1,14 +1,15 @@
 #pragma once
 
-#include <string>
 #include <cstddef>
+#include <string>
 
 class DmaBufAlloc {
-public:
-    explicit DmaBufAlloc(const std::string& heap_name);
+  public:
+    explicit DmaBufAlloc(const std::string &heap_name);
     ~DmaBufAlloc();
 
     int alloc_buf_fd(std::size_t len);
-private:
+
+  private:
     int m_heap_fd;
 };
