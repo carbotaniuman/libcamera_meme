@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: ./ # pguyot/arm-runner-action@HEAD
+    - uses: pguyot/arm-runner-action@v2
       with:
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a7
