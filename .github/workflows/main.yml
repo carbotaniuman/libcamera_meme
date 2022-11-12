@@ -17,5 +17,6 @@ jobs:
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a7
         commands: |
-            echo "Minimal"
-            test `uname -m` = 'aarch64'
+            apt install libopencv-dev libegl1-mesa-dev
+            cmake -B build-pi -DCMAKE_BUILD_TYPE=Release
+            cmake --build build-pi -j 4
