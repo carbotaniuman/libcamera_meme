@@ -16,9 +16,9 @@ jobs:
       with:
         base_image: raspios_lite_arm64:latest
         cpu: cortex-a7
-        image_additional_mb: 1000
+        image_additional_mb: 1500
         commands: |
             apt-get update
-            apt-get install -y libopencv-dev libegl1-mesa-dev libcamera-dev cmake build-essential libdrm-dev libgbm-dev
+            apt-get install -y libopencv-dev libegl1-mesa-dev libcamera-dev cmake build-essential libdrm-dev libgbm-dev openjdk-11-jdk
             cmake -B build-pi -DCMAKE_BUILD_TYPE=Release
             cmake --build build-pi -j 4
