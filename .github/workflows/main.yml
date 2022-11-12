@@ -1,0 +1,21 @@
+name: Build driver
+on:
+  push:
+    branches:
+      - 'main'
+      - 'releases/**'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./ # pguyot/arm-runner-action@HEAD
+      with:
+        base_image: raspios_lite_arm64:latest
+        cpu: cortex-a7
+        commands: |
+            echo "Minimal"
+            test `uname -m` = 'aarch64'
