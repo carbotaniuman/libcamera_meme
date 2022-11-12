@@ -26,8 +26,11 @@ jobs:
 
     - run: find .
 
-    # Upload client artifact.
     - uses: actions/upload-artifact@master
       with:
         name: libcamera-driver
         path: build-pi/*.so
+    - uses: actions/upload-artifact@master
+      with:
+        name: libcamera-meme
+        path: build-pi/libcamera_meme
