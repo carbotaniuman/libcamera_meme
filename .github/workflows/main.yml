@@ -2,7 +2,7 @@ name: Build driver
 on:
   push:
     branches:
-      - 'main'
+      - 'master'
       - 'releases/**'
   pull_request:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
         name: libcamera-meme
         path: build-pi/libcamera_meme
 
-    # Push to dev release
+    # Push to dev release on pushes to master
     - uses: pyTooling/Actions/releaser@r0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
