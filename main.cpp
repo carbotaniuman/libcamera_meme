@@ -1,130 +1,77 @@
-#include <libcamera/camera.h>
-#include <libcamera/camera_manager.h>
+#include "camera_runner.h"
+#include "libcamera_jni.hpp"
 
-#include <thread>
 #include <chrono>
 #include <iostream>
-#include <cstring>
 
 #include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <sys/mman.h>
+#include <opencv2/imgcodecs.hpp>
 
-#include "dma_buf_alloc.h"
-#include "gl_hsv_thresholder.h"
-#include "camera_grabber.h"
-#include "libcamera_opengl_utility.h"
-#include "concurrent_blocking_queue.h"
+enum class ProcessType_: int32_t {
+    None = 0,
+    Hsv,
+    Gray,
+    Adaptive,
+};
+
+void test_res(int width, int height) {
+    int rotation = 180;
+    Java_org_photonvision_raspi_LibCameraJNI_createCamera(nullptr, nullptr,
+                                                          width, height, rotation);
+    // Java_org_photonvision_raspi_LibCameraJNI_setGpuProcessType(nullptr, nullptr, 1);
+    Java_org_photonvision_raspi_LibCameraJNI_setGpuProcessType(nullptr, nullptr, (jint)ProcessType_::Hsv);
+    Java_org_photonvision_raspi_LibCameraJNI_setFramesToCopy(nullptr, nullptr, true, true);
+    Java_org_photonvision_raspi_LibCameraJNI_startCamera(nullptr, nullptr);
+
+    Java_org_photonvision_raspi_LibCameraJNI_setExposure(nullptr, nullptr, 80 * 800);
+    Java_org_photonvision_raspi_LibCameraJNI_setBrightness(nullptr, nullptr, 0.0);
+    Java_org_photonvision_raspi_LibCameraJNI_setAnalogGain(nullptr, nullptr, 20);
+    Java_org_photonvision_raspi_LibCameraJNI_setAutoExposure(nullptr, nullptr, true);
+
+    auto start = std::chrono::steady_clock::now();
+
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(3))  {
+        bool ready = Java_org_photonvision_raspi_LibCameraJNI_awaitNewFrame(nullptr, nullptr);
+        if (ready) {
+            static int i = 0;
+
+            cv::Mat color_mat = *(cv::Mat*)Java_org_photonvision_raspi_LibCameraJNI_takeColorFrame(nullptr, nullptr);
+            cv::Mat threshold_mat = *(cv::Mat*)Java_org_photonvision_raspi_LibCameraJNI_takeProcessedFrame(nullptr, nullptr);
+
+            uint64_t captureTime = Java_org_photonvision_raspi_LibCameraJNI_getFrameCaptureTime(nullptr, nullptr);
+            uint64_t now = Java_org_photonvision_raspi_LibCameraJNI_getLibcameraTimestamp(nullptr, nullptr);
+            printf("now %lu capture %lu latency %f\n", now, captureTime, (double)(now - captureTime) / 1000000.0);
+
+            i++;
+            static char arr[50];
+            snprintf(arr,sizeof(arr),"color_%i.png", i);
+            cv::imwrite(arr, color_mat);
+            snprintf(arr,sizeof(arr),"thresh_%i.png", i);
+            cv::imwrite(arr, threshold_mat);
+        }
+    }
+
+    Java_org_photonvision_raspi_LibCameraJNI_stopCamera(nullptr, nullptr);
+    Java_org_photonvision_raspi_LibCameraJNI_destroyCamera(nullptr, nullptr);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+}
 
 int main() {
-    constexpr int width = 1920, height = 1080;
-    auto allocer = DmaBufAlloc("/dev/dma_heap/linux,cma");
+    // test_res(1920, 1080);
+    test_res(320, 240);
+    // test_res(640, 480);
+    // test_res(960, 720);
+    // // test_res(2592, 1944);
+    // test_res(2592/2, 1944/2);
+    // test_res(1920, 1080);
+    // test_res(320, 240);
+    // test_res(640, 480);
+    // test_res(960, 720);
+    // // test_res(2592, 1944);
+    // test_res(2592/2, 1944/2);
 
-    auto camera_manager = std::make_unique<libcamera::CameraManager>();
-    camera_manager->start();
-
-    auto cameras = camera_manager->cameras();
-    if (cameras.size() != 1) {
-        throw std::runtime_error("code expects only one camera present");
-    }
-
-    auto camera = cameras[0];
-    auto grabber = CameraGrabber(std::move(camera), width, height);
-    unsigned int stride = grabber.streamConfiguration().stride;
-
-    auto camera_queue = ConcurrentBlockingQueue<libcamera::Request *>();
-    grabber.setOnData([&](libcamera::Request *request) {
-        camera_queue.push(request);
-    });
-
-    std::vector<int> fds {
-            allocer.alloc_buf(width * height * 4),
-            allocer.alloc_buf(width * height * 4),
-            allocer.alloc_buf(width * height * 4)
-    };
-
-    std::thread threshold([&]() {
-        auto colorspace = grabber.streamConfiguration().colorSpace.value();
-        auto thresholder = GlHsvThresholder(width, height, fds);
-
-        auto gpu_queue = ConcurrentBlockingQueue<int>();
-        thresholder.setOnComplete([&](int fd) {
-            gpu_queue.push(fd);
-        });
-
-        std::thread display([&]() {
-            std::unordered_map<int, unsigned char *> mmaped;
-
-            for (auto fd: fds) {
-                auto mmap_ptr = mmap(nullptr, width * height * 4, PROT_READ, MAP_SHARED, fd, 0);
-                if (mmap_ptr == MAP_FAILED) {
-                    throw std::runtime_error("failed to mmap pointer");
-                }
-                mmaped.emplace(fd, static_cast<unsigned char *>(mmap_ptr));
-            }
-
-            cv::Mat threshold_mat(height, width, CV_8UC1);
-            unsigned char *threshold_out_buf = threshold_mat.data;
-            cv::Mat color_mat(height, width, CV_8UC3);
-            unsigned char *color_out_buf = color_mat.data;
-
-            while (true) {
-                auto fd = gpu_queue.pop();
-                if (fd == -1) {
-                    break;
-                }
-
-                auto input_ptr = mmaped.at(fd);
-                int bound = width * height;
-
-                for (int i = 0; i < bound; i++) {
-                    std::memcpy(color_out_buf + i * 3, input_ptr + i * 4, 3);
-                    threshold_out_buf[i] = input_ptr[i * 4 + 3];
-                }
-
-                // pls don't optimize these writes out compiler
-                std::cout << reinterpret_cast<uint64_t>(threshold_out_buf) << " " << reinterpret_cast<uint64_t>(color_out_buf) << std::endl;
-
-                thresholder.returnBuffer(fd);
-                // cv::imshow("cam", mat);
-                // cv::waitKey(3);
-            }
-        });
-
-        while (true) {
-            auto request = camera_queue.pop();
-
-            if (!request) {
-                break;
-            }
-
-            auto planes = request->buffers().at(grabber.streamConfiguration().stream())->planes();
-
-            std::array<GlHsvThresholder::DmaBufPlaneData, 3> yuv_data {{
-             {planes[0].fd.get(),
-              static_cast<EGLint>(planes[0].offset),
-              static_cast<EGLint>(stride)},
-             {planes[1].fd.get(),
-              static_cast<EGLint>(planes[1].offset),
-              static_cast<EGLint>(stride / 2)},
-             {planes[2].fd.get(),
-              static_cast<EGLint>(planes[2].offset),
-              static_cast<EGLint>(stride / 2)},
-             }};
-
-            thresholder.testFrame(yuv_data, encodingFromColorspace(colorspace), rangeFromColorspace(colorspace));
-            grabber.requeueRequest(request);
-        }
-    });
-
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
-    grabber.startAndQueue();
-
-    for (int i = 0; i < 10; i++) {
-        std::cout << "Waiting for 1 second" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    std::cout << "Done" << std::endl;
 
     return 0;
 }

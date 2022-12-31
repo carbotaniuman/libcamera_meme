@@ -17,7 +17,9 @@ DmaBufAlloc::DmaBufAlloc(const std::string &heap_name) {
     m_heap_fd = heap_fd;
 }
 
-int DmaBufAlloc::alloc_buf(std::size_t len) {
+DmaBufAlloc::~DmaBufAlloc() { close(m_heap_fd); }
+
+int DmaBufAlloc::alloc_buf_fd(std::size_t len) {
     struct dma_heap_allocation_data alloc = {};
     alloc.len = len;
     alloc.fd_flags = O_CLOEXEC | O_RDWR;
@@ -27,8 +29,4 @@ int DmaBufAlloc::alloc_buf(std::size_t len) {
         throw std::runtime_error("failed to allocate dma-heap");
     }
     return alloc.fd;
-}
-
-void DmaBufAlloc::free_buf(int fd) {
-    close(fd);
 }

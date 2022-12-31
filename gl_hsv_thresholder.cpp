@@ -1,90 +1,23 @@
 #include "gl_hsv_thresholder.h"
+#include "glerror.h"
+#include "gl_shader_source.h"
 
 #include <EGL/eglext.h>
 #include <GLES2/gl2ext.h>
-
-#include <stdexcept>
-#include <iostream>
-
 #include <libdrm/drm_fourcc.h>
 
-#include "stb_image.h"
+#include <iostream>
+#include <stdexcept>
 
 #define GLERROR() glerror(__LINE__)
 #define EGLERROR() eglerror(__LINE__)
 
-void glerror(int line) {
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::string output;
-        output.resize(128);
-        snprintf(output.data(), 128, "GL error detected on line %d: 0x%04x\n", line, error);
-        std::cout << output << std::endl;
-        throw std::runtime_error(output);
-    }
-}
-
-void eglerror(int line) {
-    EGLint error = eglGetError();
-    if (error != EGL_SUCCESS) {
-        std::string output;
-        output.resize(128);
-        snprintf(output.data(), 128, "EGL error detected on line %d: 0x%04x\n", line, error);
-        std::cout << output << std::endl;
-        throw std::runtime_error(output);
-    }
-}
-
-static constexpr const char *VERTEX_SOURCE =
-        "#version 100\n"
-        ""
-        "attribute vec2 vertex;"
-        "varying vec2 texcoord;"
-        ""
-        "void main(void) {"
-        "   texcoord = 0.5 * (vertex + 1.0);"
-        "   gl_Position = vec4(vertex, 0.0, 1.0);"
-        "}";
-
-static constexpr const char *FRAGMENT_SOURCE =
-        "#version 100\n"
-        "#extension GL_OES_EGL_image_external : require\n"
-        ""
-        "precision lowp float;"
-        "precision lowp int;"
-        ""
-        "varying vec2 texcoord;"
-        ""
-        "uniform vec3 lowerThresh;"
-        "uniform vec3 upperThresh;"
-        "uniform samplerExternalOES tex;"
-        ""
-        "vec3 rgb2hsv(const vec3 p) {"
-        "  const vec4 H = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);"
-        // Using ternary seems to be faster than using mix and step
-        "  vec4 o = mix(vec4(p.bg, H.wz), vec4(p.gb, H.xy), step(p.b, p.g));"
-        "  vec4 t = mix(vec4(o.xyw, p.r), vec4(p.r, o.yzx), step(o.x, p.r));"
-        ""
-        "  float O = t.x - min(t.w, t.y);"
-        "  const float n = 1.0e-10;"
-        "  return vec3(abs(t.z + (t.w - t.y) / (6.0 * O + n)), O / (t.x + n), "
-        "t.x);"
-        "}"
-        ""
-        "bool inRange(vec3 hsv) {"
-        "  const float epsilon = 0.0001;"
-        "  bvec3 botBool = greaterThanEqual(hsv, lowerThresh - epsilon);"
-        "  bvec3 topBool = lessThanEqual(hsv, upperThresh + epsilon);"
-        "  return all(botBool) && all(topBool);"
-        "}"
-        ""
-        "void main(void) {"
-        "  vec3 col = texture2D(tex, texcoord).rgb;"
-        "  gl_FragColor = vec4(col.bgr, int(inRange(rgb2hsv(col))));"
-        "}";
-
 GLuint make_shader(GLenum type, const char *source) {
     auto shader = glCreateShader(type);
+
+    void *ctx = eglGetCurrentContext();
+    // printf("Shader idx: %i context ptr: %lu\n", (int) shader, (size_t)ctx);
+
     if (!shader) {
         throw std::runtime_error("failed to create shader");
     }
@@ -140,89 +73,63 @@ GLuint make_program(const char *vertex_source, const char *fragment_source) {
     return program;
 }
 
-GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>& output_buf_fds): m_width(width), m_height(height) {
-    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress(
+GlHsvThresholder::GlHsvThresholder(int width, int height)
+    : m_width(width), m_height(height) {
+    m_status = createHeadless();
+    m_context = m_status.context;
+    m_display = m_status.display;
+
+}
+
+GlHsvThresholder::~GlHsvThresholder() {
+    for (auto& program : m_programs)
+        glDeleteProgram(program);
+
+    glDeleteBuffers(1, &m_quad_vbo);
+    for (const auto [key, value]: m_framebuffers) {
+        glDeleteFramebuffers(1, &value);
+    }
+    destroyHeadless(m_status);
+}
+
+static void on_gl_error(EGLenum error,const char *command,EGLint messageType,EGLLabelKHR threadLabel,EGLLabelKHR objectLabel,const char* message)
+{
+
+    printf("Error111: %s\n", message);
+
+}
+
+void GlHsvThresholder::start(const std::vector<int> &output_buf_fds) {
+    static auto glEGLImageTargetTexture2DOES =
+        (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress(
             "glEGLImageTargetTexture2DOES");
-    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
+    static auto eglCreateImageKHR =
+        (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
+    static auto eglDestroyImageKHR =
+        (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
+    static auto glDebugMessageCallbackKHR =
+            (PFNEGLDEBUGMESSAGECONTROLKHRPROC)eglGetProcAddress("glDebugMessageCallbackKHR");
 
-    if (!glEGLImageTargetTexture2DOES) {
-        throw std::runtime_error("cannot get address of glEGLImageTargetTexture2DOES");
-    }
-
-    auto display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    EGLERROR();
-    if (display == EGL_NO_DISPLAY) {
-        throw std::runtime_error("failed to get default display");
-    }
-
-    if (!eglInitialize(display, nullptr, nullptr)) {
-        throw std::runtime_error("failed to initialize display");
-    }
-    EGLERROR();
-
-    const EGLint attribs[] = {
-            EGL_RED_SIZE, 8,
-            EGL_GREEN_SIZE, 8,
-            EGL_BLUE_SIZE, 8,
-            EGL_ALPHA_SIZE, 8,
-            EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-            EGL_NONE
-    };
-
-    EGLConfig config;
-    EGLint num_configs;
-    if (!eglChooseConfig(display, attribs, &config, 1, &num_configs) || num_configs < 1) {
-        throw std::runtime_error("failed to choose config");
-    }
-    EGLERROR();
-
-    if (!eglBindAPI(EGL_OPENGL_ES_API)) {
-        throw std::runtime_error("failed to bind API");
-    }
-    EGLERROR();
-    m_display = display;
-
-    const EGLint ctx_attribs[] = {
-            EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL_NONE
-    };
-    auto context = eglCreateContext(display, config, EGL_NO_CONTEXT, ctx_attribs);
-    if (!context) {
-        throw std::runtime_error("failed to create context");
-    }
-    EGLERROR();
-    m_context = context;
-
-    const EGLint pbuffer_attribs[] = {
-            EGL_WIDTH, width,
-            EGL_HEIGHT, height,
-            EGL_NONE
-    };
-    auto surface = eglCreatePbufferSurface(display, config, pbuffer_attribs);
-    if (!surface) {
-        throw std::runtime_error("failed to create pixel buffer surface");
-    }
-    EGLERROR();
-    m_surface = surface;
-
-    if (!eglMakeCurrent(display, surface, surface, context)) {
+    if (!eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_context)) {
         throw std::runtime_error("failed to bind egl context");
     }
     EGLERROR();
 
-    {
-        auto program = make_program(VERTEX_SOURCE, FRAGMENT_SOURCE);
+    // glEnable(GL_DEBUG_OUTPUT_KHR);
+    // GLERROR();
+    // glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
+    // GLERROR();
+    // glDebugMessageCallbackKHR(on_gl_error, nullptr);
+    // GLERROR();
 
-        glUseProgram(program);
-        GLERROR();
-        glUniform1i(glGetUniformLocation(program, "tex"), 0);
-        GLERROR();
+    m_programs.reserve(5);
+    m_programs[0] = make_program(VERTEX_SOURCE, NONE_FRAGMENT_SOURCE);
+    m_programs[1] = make_program(VERTEX_SOURCE, HSV_FRAGMENT_SOURCE);
+    m_programs[2] = make_program(VERTEX_SOURCE, GRAY_FRAGMENT_SOURCE);
+    m_programs[3] = make_program(VERTEX_SOURCE, TILING_FRAGMENT_SOURCE);
+    m_programs[4] = make_program(VERTEX_SOURCE, THRESHOLDING_FRAGMENT_SOURCE);
 
-        m_program = program;
-    }
-
-    for (auto fd: output_buf_fds) {
+    for (auto fd : output_buf_fds) {
         GLuint out_tex;
         glGenTextures(1, &out_tex);
         GLERROR();
@@ -233,22 +140,32 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         GLERROR();
 
-        const EGLint image_attribs[] = {
-                EGL_WIDTH, static_cast<EGLint>(width),
-                EGL_HEIGHT, static_cast<EGLint>(height),
-                EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ARGB8888,
-                EGL_DMA_BUF_PLANE0_FD_EXT, static_cast<EGLint>(fd),
-                EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
-                EGL_DMA_BUF_PLANE0_PITCH_EXT, static_cast<EGLint>(width * 4),
-                EGL_NONE
-        };
-        auto image = eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, image_attribs);
+        const EGLint image_attribs[] = {EGL_WIDTH,
+                                        static_cast<EGLint>(m_width),
+                                        EGL_HEIGHT,
+                                        static_cast<EGLint>(m_height),
+                                        EGL_LINUX_DRM_FOURCC_EXT,
+                                        DRM_FORMAT_ABGR8888,
+                                        EGL_DMA_BUF_PLANE0_FD_EXT,
+                                        static_cast<EGLint>(fd),
+                                        EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+                                        0,
+                                        EGL_DMA_BUF_PLANE0_PITCH_EXT,
+                                        static_cast<EGLint>(m_width * 4),
+                                        EGL_NONE};
+        auto image =
+            eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                              nullptr, image_attribs);
         EGLERROR();
         if (!image) {
-            throw std::runtime_error("failed to import fd " + std::to_string(fd));
+            throw std::runtime_error("failed to import fd " +
+                                     std::to_string(fd));
         }
 
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
+        GLERROR();
+
+        eglDestroyImageKHR(m_display, image); 
         GLERROR();
 
         GLuint framebuffer;
@@ -256,10 +173,12 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
         GLERROR();
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         GLERROR();
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out_tex, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, out_tex, 0);
         GLERROR();
 
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
+            GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error("failed to complete framebuffer");
         }
 
@@ -271,8 +190,8 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
 
     {
         static GLfloat quad_varray[] = {
-                -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f,
-                -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 1.0f,  -1.0f,
+            -1.0f, 1.0f,  1.0f, 1.0f, -1.0f, -1.0f,
         };
 
         GLuint quad_vbo;
@@ -280,21 +199,102 @@ GlHsvThresholder::GlHsvThresholder(int width, int height, const std::vector<int>
         GLERROR();
         glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
         GLERROR();
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quad_varray), quad_varray, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quad_varray), quad_varray,
+                     GL_STATIC_DRAW);
         GLERROR();
 
         m_quad_vbo = quad_vbo;
     }
+
+    {
+        GLuint grayscale_texture;
+        glGenTextures(1, &grayscale_texture);
+        GLERROR();
+        glBindTexture(GL_TEXTURE_2D, grayscale_texture);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        GLERROR();
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        GLERROR();
+
+        m_grayscale_texture = grayscale_texture;
+    }
+
+    {
+        GLuint grayscale_buffer;
+        glGenFramebuffers(1, &grayscale_buffer);
+        GLERROR();
+        glBindFramebuffer(GL_FRAMEBUFFER, grayscale_buffer);
+        GLERROR();
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_grayscale_texture, 0);
+        GLERROR();
+
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            throw std::runtime_error("failed to complete grayscale_buffer");
+        }
+
+        m_grayscale_buffer = grayscale_buffer;
+    }
+
+    {
+        GLuint min_max_texture;
+        glGenTextures(1, &min_max_texture);
+        GLERROR();
+        glBindTexture(GL_TEXTURE_2D, min_max_texture);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+        GLERROR();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+        GLERROR();
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, m_width / 4, m_height / 4, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        GLERROR();
+
+        m_min_max_texture = min_max_texture;
+    }
+
+    {
+        GLuint min_max_framebuffer;
+        glGenFramebuffers(1, &min_max_framebuffer);
+        GLERROR();
+        glBindFramebuffer(GL_FRAMEBUFFER, min_max_framebuffer);
+        GLERROR();
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_min_max_texture, 0);
+        GLERROR();
+
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            throw std::runtime_error("failed to complete grayscale_buffer");
+        }
+
+        m_min_max_framebuffer = min_max_framebuffer;
+    }
 }
 
-void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneData, 3>& yuv_plane_data, EGLint encoding, EGLint range) {
-    static auto glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC) eglGetProcAddress(
+void GlHsvThresholder::release() {
+    if (!eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
+        throw std::runtime_error("failed to bind egl context");
+    }
+}
+
+int GlHsvThresholder::testFrame(
+    const std::array<GlHsvThresholder::DmaBufPlaneData, 3> &yuv_plane_data,
+    EGLint encoding, EGLint range, ProcessType type) {
+    static auto glEGLImageTargetTexture2DOES =
+        (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress(
             "glEGLImageTargetTexture2DOES");
-    static auto eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC) eglGetProcAddress("eglCreateImageKHR");
-    static auto eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC) eglGetProcAddress("eglDestroyImageKHR");
+    static auto eglCreateImageKHR =
+        (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
+    static auto eglDestroyImageKHR =
+        (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
 
     if (!glEGLImageTargetTexture2DOES) {
-        throw std::runtime_error("cannot get address of glEGLImageTargetTexture2DOES");
+        throw std::runtime_error(
+            "cannot get address of glEGLImageTargetTexture2DOES");
     }
 
     int framebuffer_fd;
@@ -302,60 +302,98 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
         std::scoped_lock lock(m_renderable_mutex);
         if (!m_renderable.empty()) {
             framebuffer_fd = m_renderable.front();
+            // std::cout << "yes framebuffer" << std::endl;
             m_renderable.pop();
         } else {
-            std::cout << "lost framebuffer, skipping" << std::endl;
-            return;
+            std::cout << "no framebuffer, skipping" << std::endl;
+            return 0;
         }
     }
 
-    auto framebuffer = m_framebuffers.at(framebuffer_fd);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    GLERROR();
+    // Begin code setup that does not change with type
 
-    EGLint attribs[] = {
-            EGL_WIDTH, m_width,
-            EGL_HEIGHT, m_height,
-            EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_YUV420,
-            EGL_DMA_BUF_PLANE0_FD_EXT, yuv_plane_data[0].fd,
-            EGL_DMA_BUF_PLANE0_OFFSET_EXT, yuv_plane_data[0].offset,
-            EGL_DMA_BUF_PLANE0_PITCH_EXT, yuv_plane_data[0].pitch,
-            EGL_DMA_BUF_PLANE1_FD_EXT, yuv_plane_data[1].fd,
-            EGL_DMA_BUF_PLANE1_OFFSET_EXT, yuv_plane_data[1].offset,
-            EGL_DMA_BUF_PLANE1_PITCH_EXT, yuv_plane_data[1].pitch,
-            EGL_DMA_BUF_PLANE2_FD_EXT, yuv_plane_data[2].fd,
-            EGL_DMA_BUF_PLANE2_OFFSET_EXT, yuv_plane_data[2].offset,
-            EGL_DMA_BUF_PLANE2_PITCH_EXT, yuv_plane_data[2].pitch,
-            EGL_YUV_COLOR_SPACE_HINT_EXT, encoding,
-            EGL_SAMPLE_RANGE_HINT_EXT, range,
-            EGL_NONE
-    };
+    EGLint attribs[] = {EGL_WIDTH,
+                        m_width,
+                        EGL_HEIGHT,
+                        m_height,
+                        EGL_LINUX_DRM_FOURCC_EXT,
+                        DRM_FORMAT_YUV420,
+                        EGL_DMA_BUF_PLANE0_FD_EXT,
+                        yuv_plane_data[0].fd,
+                        EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+                        yuv_plane_data[0].offset,
+                        EGL_DMA_BUF_PLANE0_PITCH_EXT,
+                        yuv_plane_data[0].pitch,
+                        EGL_DMA_BUF_PLANE1_FD_EXT,
+                        yuv_plane_data[1].fd,
+                        EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+                        yuv_plane_data[1].offset,
+                        EGL_DMA_BUF_PLANE1_PITCH_EXT,
+                        yuv_plane_data[1].pitch,
+                        EGL_DMA_BUF_PLANE2_FD_EXT,
+                        yuv_plane_data[2].fd,
+                        EGL_DMA_BUF_PLANE2_OFFSET_EXT,
+                        yuv_plane_data[2].offset,
+                        EGL_DMA_BUF_PLANE2_PITCH_EXT,
+                        yuv_plane_data[2].pitch,
+                        EGL_YUV_COLOR_SPACE_HINT_EXT,
+                        encoding,
+                        EGL_SAMPLE_RANGE_HINT_EXT,
+                        range,
+                        EGL_NONE};
 
-    auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
+    auto image = eglCreateImageKHR(m_display, EGL_NO_CONTEXT,
+                                   EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
     EGLERROR();
     if (!image) {
-        throw std::runtime_error("failed to import fd " + std::to_string(yuv_plane_data[0].fd));
+        throw std::runtime_error("failed to import fd " +
+                                 std::to_string(yuv_plane_data[0].fd));
     }
+
 
     GLuint texture;
     glGenTextures(1, &texture);
     GLERROR();
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
     GLERROR();
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     GLERROR();
-    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     GLERROR();
     glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
     GLERROR();
     eglDestroyImageKHR(m_display, image);
     EGLERROR();
+    // End portion of code that does not change with type
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    GLuint initial_program = -1;
+
+    if (type == ProcessType::None) {
+        initial_program = m_programs[0];
+    } else if (type == ProcessType::Hsv) {
+        initial_program = m_programs[1];
+    } else if (type == ProcessType::Gray || type == ProcessType::Adaptive) {
+        initial_program = m_programs[2];
+    }
+
+    glUseProgram(initial_program);
+    GLERROR();
+    glUniform1i(glGetUniformLocation(initial_program, "tex"), 0);
     GLERROR();
 
-    glUseProgram(m_program);
-    GLERROR();
+    if (type == ProcessType::Hsv) {
+        auto lll = glGetUniformLocation(initial_program, "lowerThresh");
+        auto uuu = glGetUniformLocation(initial_program, "upperThresh");
+        auto invert = glGetUniformLocation(initial_program, "invertHue");
+
+        std::lock_guard lock{m_hsv_mutex};
+        glUniform3f(lll, m_hsvLower[0], m_hsvLower[1], m_hsvLower[2]);
+        GLERROR();
+        glUniform3f(uuu, m_hsvUpper[0], m_hsvUpper[1], m_hsvUpper[2]);
+        GLERROR();
+        glUniform1i(invert, m_invertHue);
+        GLERROR();
+    }
 
     glActiveTexture(GL_TEXTURE0);
     GLERROR();
@@ -364,39 +402,135 @@ void GlHsvThresholder::testFrame(const std::array<GlHsvThresholder::DmaBufPlaneD
 
     glBindBuffer(GL_ARRAY_BUFFER, m_quad_vbo);
     GLERROR();
-    // TODO: refactor these
-    static auto attr_loc = glGetAttribLocation(m_program, "vertex");
+
+    auto attr_loc = glGetAttribLocation(initial_program, "vertex");
     glEnableVertexAttribArray(attr_loc);
     GLERROR();
     glVertexAttribPointer(attr_loc, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
     GLERROR();
-    static auto lll = glGetUniformLocation(m_program, "lowerThresh");
-    glUniform3f(lll, 0.0, 50.0 / 255.0, 50.0 / 255.0);
-    GLERROR();
-    static auto uuu = glGetUniformLocation(m_program, "upperThresh");
-    glUniform3f(uuu, 1.0, 1.0, 1.0);
-    GLERROR();
 
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    GLERROR();
+    if (type != ProcessType::Adaptive) {
+        auto out_framebuffer = m_framebuffers.at(framebuffer_fd);
+        glBindFramebuffer(GL_FRAMEBUFFER, out_framebuffer);
+        GLERROR();
 
-    glFinish();
-    GLERROR();
+        glViewport(0, 0, m_width, m_height);
+        GLERROR();
+        glClear(GL_COLOR_BUFFER_BIT);
+        GLERROR();
 
-    if(m_onComplete) {
-        m_onComplete->operator()(framebuffer_fd);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        GLERROR();
+
+        glFinish();
+        GLERROR();
+
+        glDeleteTextures(1, &texture);
+        GLERROR();
+
+        return framebuffer_fd;
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_grayscale_buffer);
+        GLERROR();
+
+        glViewport(0, 0, m_width, m_height);
+        GLERROR();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        GLERROR();
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        GLERROR();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, m_min_max_framebuffer);
+        GLERROR();
+
+        glViewport(0, 0, m_width / 4, m_height / 4);
+        GLERROR();
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        GLERROR();
+
+        glActiveTexture(GL_TEXTURE0);
+        GLERROR();
+        glBindTexture(GL_TEXTURE_2D, m_grayscale_texture);
+        GLERROR();
+
+        glUseProgram(m_programs[3]);
+        GLERROR();
+
+        glUniform1i(glGetUniformLocation(m_programs[3], "tex"), 0);
+        GLERROR();
+
+        auto res = glGetUniformLocation(m_programs[3], "resolution_in");
+        GLERROR();
+        glUniform2f(res, m_width, m_height);
+        GLERROR();
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        GLERROR();
+
+        // TODO: This finish may be unneeded
+        glFinish();
+        GLERROR();
+
+        auto out_framebuffer = m_framebuffers.at(framebuffer_fd);
+        glBindFramebuffer(GL_FRAMEBUFFER, out_framebuffer);
+        GLERROR();
+
+        glViewport(0, 0, m_width, m_height);
+        GLERROR();
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        GLERROR();
+
+        glUseProgram(m_programs[4]);
+        GLERROR();
+
+        glUniform1i(glGetUniformLocation(m_programs[4], "tex"), 0);
+        GLERROR();
+        glUniform1i(glGetUniformLocation(m_programs[4], "tiles"), 1);
+        GLERROR();
+
+        glActiveTexture(GL_TEXTURE0);
+        GLERROR();
+        glBindTexture(GL_TEXTURE_2D, m_grayscale_texture);
+        GLERROR();
+
+        glActiveTexture(GL_TEXTURE1);
+        GLERROR();
+        glBindTexture(GL_TEXTURE_2D, m_min_max_texture);
+        GLERROR();
+
+        auto tile_res = glGetUniformLocation(m_programs[4], "tile_resolution");
+        GLERROR();
+        glUniform2f(tile_res, m_width / 4, m_height / 4);
+        GLERROR();
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        GLERROR();
+
+        glFinish();
+        GLERROR();
+
+        return framebuffer_fd;
     }
-}
-
-void GlHsvThresholder::setOnComplete(std::function<void(int)> onComplete) {
-    m_onComplete = std::move(onComplete);
-}
-
-void GlHsvThresholder::resetOnComplete() {
-    m_onComplete.reset();
 }
 
 void GlHsvThresholder::returnBuffer(int fd) {
     std::scoped_lock lock(m_renderable_mutex);
     m_renderable.push(fd);
+}
+
+void GlHsvThresholder::setHsvThresholds(double hl, double sl, double vl,
+                                        double hu, double su, double vu,
+                                        bool hueInverted) {
+    std::lock_guard lock{m_hsv_mutex};
+    m_hsvLower[0] = hl;
+    m_hsvLower[1] = sl;
+    m_hsvLower[2] = vl;
+
+    m_hsvUpper[0] = hu;
+    m_hsvUpper[1] = su;
+    m_hsvUpper[2] = vu;
+    m_invertHue = hueInverted;
 }

@@ -1,17 +1,17 @@
-#ifndef LIBCAMERA_MEME_DMA_BUF_ALLOC_H
-#define LIBCAMERA_MEME_DMA_BUF_ALLOC_H
+#pragma once
 
-#include <string>
 #include <cstddef>
+#include <string>
 
 class DmaBufAlloc {
-public:
-    explicit DmaBufAlloc(const std::string& heap_name);
-    int alloc_buf(std::size_t len);
+  public:
+    explicit DmaBufAlloc(const std::string &heap_name);
+    ~DmaBufAlloc();
 
-    static void free_buf(int fd);
-private:
+    // Allocates a DMA-BUF of size len. The returned
+    // fd can be closed using `close`.
+    int alloc_buf_fd(std::size_t len);
+
+  private:
     int m_heap_fd;
 };
-
-#endif //LIBCAMERA_MEME_DMA_BUF_ALLOC_H

@@ -4,17 +4,52 @@
 #include <stdexcept>
 
 #include <libcamera/control_ids.h>
-#include <sys/mman.h>
+#include <libcamera/property_ids.h>
 
-CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int width, int height) : m_camera(std::move(camera)),
-                                                                                                 m_buf_allocator(m_camera) {
+CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera,
+                             int width, int height, int rotation)
+    : m_buf_allocator(camera), m_camera(std::move(camera)), m_cameraExposureProfiles(std::nullopt) {
+
     if (m_camera->acquire()) {
         throw std::runtime_error("failed to acquire camera");
     }
+ 
+    // Determine model
+    auto &cprp = m_camera->properties();
+    auto model = cprp.get(libcamera::properties::Model);
+    if (model) {
+        m_model = stringToModel(model.value());
+    } else {
+        m_model = Unknown;
+    }
 
-    auto config = m_camera->generateConfiguration({libcamera::StreamRole::VideoRecording});
+    std::cout << "Model " << m_model << std::endl;   
+
+    auto config = m_camera->generateConfiguration(
+        {libcamera::StreamRole::VideoRecording});
+    
+    // print active arrays
+    if (m_camera->properties().contains(libcamera::properties::PIXEL_ARRAY_ACTIVE_AREAS)) {
+        printf("Active areas:\n");
+        auto rects = m_camera->properties().get(libcamera::properties::PixelArrayActiveAreas);
+        if (rects.has_value()) {
+            for(const auto rect : rects.value()) {
+                std::cout << rect.toString() << std::endl;
+            }
+        }
+    } else 
+        printf("No active areas\n");
+
     config->at(0).size.width = width;
     config->at(0).size.height = height;
+
+    printf("Rotation = %i\n", rotation);
+    if (rotation == 180) {
+        using namespace libcamera;
+        config->transform = Transform::HFlip * Transform::VFlip * libcamera::Transform::Identity;
+    } else {
+        config->transform = libcamera::Transform::Identity;
+    }
 
     if (config->validate() == libcamera::CameraConfiguration::Invalid) {
         throw std::runtime_error("failed to validate config");
@@ -32,27 +67,25 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera, int widt
     }
     m_config = std::move(config);
 
-    for (const auto &buffer: m_buf_allocator.buffers(stream)) {
+    for (const auto &buffer : m_buf_allocator.buffers(stream)) {
         auto request = m_camera->createRequest();
 
         auto &controls = request->controls();
-        controls.set(libcamera::controls::FrameDurationLimits, {static_cast<int64_t>(8333), static_cast<int64_t>(8333)});
-        controls.set(libcamera::controls::ExposureTime, 1);
+        // controls.set(libcamera::controls::FrameDurationLimits,
+        // {static_cast<int64_t>(8333), static_cast<int64_t>(8333)});
+        // controls.set(libcamera::controls::ExposureTime, 10000);
 
         request->addBuffer(stream, buffer.get());
         m_requests.push_back(std::move(request));
-
-        size_t len = 0;
-        int fd = 0;
-        for (const auto &plane: buffer->planes()) {
-            fd = plane.fd.get();
-            len += plane.length;
-        }
-        auto memory = static_cast<const char *>(mmap(nullptr, len, PROT_READ, MAP_SHARED, fd, 0));
-        m_mapped.emplace(fd, memory);
     }
 
     m_camera->requestCompleted.connect(this, &CameraGrabber::requestComplete);
+}
+
+CameraGrabber::~CameraGrabber() {
+    m_camera->release();
+    m_camera->requestCompleted.disconnect(this,
+                                          &CameraGrabber::requestComplete);
 }
 
 void CameraGrabber::requestComplete(libcamera::Request *request) {
@@ -64,40 +97,112 @@ void CameraGrabber::requestComplete(libcamera::Request *request) {
 
     i++;
 
-    if(m_onData) {
+    if (m_onData) {
         m_onData->operator()(request);
     }
-
-    std::cout << i << std::endl;
 }
 
 void CameraGrabber::requeueRequest(libcamera::Request *request) {
-    request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
-    if (m_camera->queueRequest(request) < 0) {
-        throw std::runtime_error("failed to queue request");
+    if (running) {
+        // This resets all our controls
+        // https://github.com/kbingham/libcamera/blob/master/src/libcamera/request.cpp#L397
+        request->reuse(libcamera::Request::ReuseFlag::ReuseBuffers);
+
+        setControls(request);
+
+        if (m_camera->queueRequest(request) < 0) {
+            throw std::runtime_error("failed to queue request");
+        }
+    }
+}
+
+void CameraGrabber::setControls(libcamera::Request *request) {
+    using namespace libcamera;
+
+    auto &controls_ = request->controls();
+    controls_.set(controls::AwbEnable, false); // AWB disabled
+    controls_.set(controls::AnalogueGain,
+                 m_settings.analogGain); // Analog gain, min 1 max big number?
+
+    controls_.set(controls::ColourGains,
+                libcamera::Span<const float, 2>{
+                    {m_settings.awbRedGain,
+                    m_settings.awbBlueGain}}); // AWB gains, red and blue,
+                                                // unknown range
+
+    // Note about brightness: -1 makes everything look deep fried, 0 is probably best for most things
+    controls_.set(libcamera::controls::Brightness,
+                m_settings.brightness); // -1 to 1, 0 means unchanged
+    controls_.set(controls::Contrast,
+                m_settings.contrast); // Nominal 1
+
+    if (m_model != OV9281) {
+        controls_.set(controls::Saturation,
+                m_settings.saturation); // Nominal 1, 0 would be greyscale
+    }
+
+    if (m_settings.doAutoExposure) {
+        controls_.set(controls::AeEnable,
+                    true); // Auto exposure disabled
+
+        controls_.set(controls::AeMeteringMode, controls::MeteringCentreWeighted);
+        controls_.set(controls::AeExposureMode, controls::ExposureShort);
+
+        // 1/fps=seconds
+        // seconds * 1e6 = uS
+        constexpr const int MIN_FRAME_TIME = 1e6 / 250;
+        constexpr const int MAX_FRAME_TIME = 1e6 / 15;
+        controls_.set(
+            libcamera::controls::FrameDurationLimits,
+            libcamera::Span<const int64_t, 2>{
+                {MIN_FRAME_TIME, MAX_FRAME_TIME}});
+    } else {
+        controls_.set(controls::AeEnable,
+                    false); // Auto exposure disabled
+        controls_.set(controls::ExposureTime,
+                    m_settings.exposureTimeUs); // in microseconds
+        controls_.set(
+            libcamera::controls::FrameDurationLimits,
+            libcamera::Span<const int64_t, 2>{
+                {m_settings.exposureTimeUs,
+                m_settings.exposureTimeUs}}); // Set default to zero, we have
+                                            // specified the exposure time
+    }
+
+    controls_.set(controls::ExposureValue, 0);
+ 
+    if (m_model != OV7251 && m_model != OV9281) {
+        controls_.set(controls::Sharpness, 1);
     }
 }
 
 void CameraGrabber::startAndQueue() {
+    running = true;
     if (m_camera->start()) {
         throw std::runtime_error("failed to start camera");
     }
 
-// TODO: HANDLE THIS BETTER
-    for (auto &request: m_requests) {
+    // TODO: HANDLE THIS BETTER
+    for (auto &request : m_requests) {
+        setControls(request.get());
         if (m_camera->queueRequest(request.get()) < 0) {
             throw std::runtime_error("failed to queue request");
         }
     }
 }
 
-void CameraGrabber::setOnData(std::function<void(libcamera::Request *)> onData) {
+void CameraGrabber::stop() {
+    running = false;
+    m_camera->stop();
+}
+
+
+void CameraGrabber::setOnData(
+    std::function<void(libcamera::Request *)> onData) {
     m_onData = std::move(onData);
 }
 
-void CameraGrabber::resetOnData() {
-    m_onData.reset();
-}
+void CameraGrabber::resetOnData() { m_onData.reset(); }
 
 const libcamera::StreamConfiguration &CameraGrabber::streamConfiguration() {
     return m_config->at(0);
