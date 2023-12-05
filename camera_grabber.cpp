@@ -47,7 +47,7 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera,
     if (rotation == 180) {
         config->orientation = libcamera::Orientation::Rotate180;
     } else {
-        config->transform = libcamera::Orientation::Rotate0;
+        config->orientation = libcamera::Orientation::Rotate0;
     }
 
     if (config->validate() == libcamera::CameraConfiguration::Invalid) {
