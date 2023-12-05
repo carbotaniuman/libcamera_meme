@@ -45,10 +45,9 @@ CameraGrabber::CameraGrabber(std::shared_ptr<libcamera::Camera> camera,
 
     printf("Rotation = %i\n", rotation);
     if (rotation == 180) {
-        using namespace libcamera;
-        config->transform = Transform::HFlip * Transform::VFlip * libcamera::Transform::Identity;
+        config->orientation = libcamera::Orientation::Rotate180;
     } else {
-        config->transform = libcamera::Transform::Identity;
+        config->transform = libcamera::Orientation::Rotate0;
     }
 
     if (config->validate() == libcamera::CameraConfiguration::Invalid) {
