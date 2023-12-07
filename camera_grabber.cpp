@@ -122,10 +122,11 @@ void CameraGrabber::setControls(libcamera::Request *request) {
     if (m_model != OV9281) {
         controls_.set(controls::AwbEnable, false); // AWB disabled
     }
-    else
-    {
-        controls_.set(controls::AwbEnable, true); // AWB Enable
-    }
+
+    controls_.set(controls::AwbEnable, true); // AWB Enable
+    controls_.set(controls::AwbMode, controls::AwbAuto); // AWB Enable
+
+
     
     controls_.set(controls::AnalogueGain,
                  m_settings.analogGain); // Analog gain, min 1 max big number?
