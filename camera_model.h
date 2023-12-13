@@ -6,6 +6,7 @@ enum CameraModel {
     Disconnected = 0,
     OV5647, // Picam v1
     IMX219, // Picam v2
+    IMX708, // Picam v3
     IMX477, // Picam HQ
     OV9281,
     OV7251,
