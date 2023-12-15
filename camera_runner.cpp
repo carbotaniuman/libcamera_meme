@@ -19,6 +19,9 @@ using latch = Latch;
 #include <libcamera/property_ids.h>
 #include <libcamera/control_ids.h>
 
+#include <sys/ioctl.h>
+#include <linux/dma-buf.h>
+
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
