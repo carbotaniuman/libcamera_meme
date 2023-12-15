@@ -84,9 +84,12 @@ void CameraRunner::start() {
                               .at(grabber.streamConfiguration().stream())
                               ->planes();
 
-            for (int i = 0; i < 3; i++) {
-                // std::cout << "Plane " << (i + 1) << " has fd " << planes[i].fd.get() << " with offset " << planes[i].offset << std::endl;
-                // std::cout << "Plane " << (i + 1) << " has fd " << planes[i].fd.get() << " with offset " << planes[i].offset << " and pitch " << static_cast<EGLint>(stride / 2) << std::endl;
+            for (const auto& plane : planes) {
+                struct dma_buf_sync dma_sync {};
+                dma_sync.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW;
+                int ret = ::ioctl(plane.fd.get(), DMA_BUF_IOCTL_SYNC, &dma_sync);
+                if (ret)
+                    throw std::runtime_error("failed to start DMA buf sync");
             }
 
             std::array<GlHsvThresholder::DmaBufPlaneData, 3> yuv_data{{
@@ -107,6 +110,13 @@ void CameraRunner::start() {
                                     rangeFromColorspace(colorspace),
                                               type);
 
+            for (const auto& plane : planes) {
+                struct dma_buf_sync dma_sync {};
+                dma_sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW;
+                int ret = ::ioctl(plane.fd.get(), DMA_BUF_IOCTL_SYNC, &dma_sync);
+                if (ret)
+                    throw std::runtime_error("failed to start DMA buf sync");
+            }
 
             if (out != 0) {
                 /*
