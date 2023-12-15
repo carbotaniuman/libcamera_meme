@@ -190,6 +190,15 @@ void CameraRunner::start() {
             auto input_ptr = mmaped.at(data.fd);
             int bound = m_width * m_height;
 
+
+            for (const auto& plane : planes) {
+                struct dma_buf_sync dma_sync {};
+                dma_sync.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_RW;
+                int ret = ::ioctl(data.fd, DMA_BUF_IOCTL_SYNC, &dma_sync);
+                if (ret)
+                    throw std::runtime_error("failed to start DMA buf sync");
+            }
+
             if (m_copyInput) {
                 for (int i = 0; i < bound; i++) {
                     std::memcpy(color_out_buf + i * 3, input_ptr + i * 4, 3);
@@ -200,6 +209,14 @@ void CameraRunner::start() {
                 for (int i = 0; i < bound; i++) {
                     processed_out_buf[i] = input_ptr[i * 4 + 3];
                 }
+            }
+            
+            for (const auto& plane : planes) {
+                struct dma_buf_sync dma_sync {};
+                dma_sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_RW;
+                int ret = ::ioctl(data.fd, DMA_BUF_IOCTL_SYNC, &dma_sync);
+                if (ret)
+                    throw std::runtime_error("failed to start DMA buf sync");
             }
 
             m_thresholder.returnBuffer(data.fd);
