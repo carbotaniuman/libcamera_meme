@@ -6,6 +6,7 @@ CameraModel stringToModel(const std::string& model) {
     const char* famname = model.c_str();
     if (!strcmp(famname, "ov5647")) return OV5647;
     else if (!strcmp(famname, "imx219")) return IMX219;
+    else if (!strcmp(famname, "imx708")) return IMX708;
     else if (!strcmp(famname, "imx477")) return IMX477;
     else if (!strcmp(famname, "ov9281")) return OV9281;
     else if (!strcmp(famname, "ov7251")) return OV7251;

@@ -62,7 +62,7 @@ Java_org_photonvision_raspi_LibCameraJNI_createCamera(JNIEnv *env, jclass,
 JNIEXPORT jint Java_org_photonvision_raspi_LibCameraJNI_getSensorModelRaw(
     JNIEnv *env, jclass clazz) {
 
-    bool runner_exists = runner > 0;
+    bool runner_exists = runner != 0;
     if (!runner_exists) {
         Java_org_photonvision_raspi_LibCameraJNI_createCamera(env, clazz,
                                                       320, 240, 30);
