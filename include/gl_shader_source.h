@@ -1,3 +1,24 @@
+/*
+ * Copyright (C) Photon Vision.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+// clang-format off
+
 static constexpr const char *VERTEX_SOURCE =
         "#version 100\n"
         ""
@@ -8,6 +29,7 @@ static constexpr const char *VERTEX_SOURCE =
         "   texcoord = 0.5 * (vertex + 1.0);"
         "   gl_Position = vec4(vertex, 0.0, 1.0);"
         "}";
+
 
 static constexpr const char *NONE_FRAGMENT_SOURCE =
         "#version 100\n"
@@ -24,6 +46,7 @@ static constexpr const char *NONE_FRAGMENT_SOURCE =
         "    vec3 color = texture2D(tex, texcoord).rgb;"
         "    gl_FragColor = vec4(color.bgr, 0);"
         "}";
+
 
 static constexpr const char *HSV_FRAGMENT_SOURCE =
         "#version 100\n"
@@ -67,6 +90,25 @@ static constexpr const char *HSV_FRAGMENT_SOURCE =
         "  gl_FragColor = vec4(col.bgr, int(inRange(rgb2hsv(col))));"
         "}";
 
+
+static constexpr const char *GRAY_PASSTHROUGH_FRAGMENT_SOURCE =
+        "#version 100\n"
+        "#extension GL_OES_EGL_image_external : require\n"
+        ""
+        "precision lowp float;"
+        "precision lowp int;"
+        ""
+        "varying vec2 texcoord;"
+        ""
+        "uniform samplerExternalOES tex;"
+        ""
+        "void main(void) {"
+        // We get in (gray, gray, gray), I think. So just copy the R channel
+        "    vec3 gray_gray_gray = texture2D(tex, texcoord).rgb;"
+        "    gl_FragColor = vec4(gray_gray_gray.bgr, gray_gray_gray[0]);"
+        "}";
+
+
 static constexpr const char *GRAY_FRAGMENT_SOURCE =
         "#version 100\n"
         "#extension GL_OES_EGL_image_external : require\n"
@@ -85,6 +127,7 @@ static constexpr const char *GRAY_FRAGMENT_SOURCE =
         "    float gammaGray = sqrt(gray);"
         "    gl_FragColor = vec4(color.bgr, gammaGray);"
         "}";
+
 
 static constexpr const char *TILING_FRAGMENT_SOURCE =
         "#version 100\n"
@@ -109,6 +152,7 @@ static constexpr const char *TILING_FRAGMENT_SOURCE =
         "  }"
         "  gl_FragColor = vec4(max_so_far, min_so_far, 0.0, 0.0);"
         "}";
+
 
 static constexpr const char *THRESHOLDING_FRAGMENT_SOURCE =
         "#version 100\n"
@@ -142,3 +186,5 @@ static constexpr const char *THRESHOLDING_FRAGMENT_SOURCE =
         "  }"
         "  gl_FragColor = vec4(color.bgr, output_);"
         "}";
+
+// clang-format on
