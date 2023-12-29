@@ -6,4 +6,4 @@ compile_commands.json
 photon_sysroot*
 build-pi/*
 cmake_build/*
-.github/*
+.gradle/*

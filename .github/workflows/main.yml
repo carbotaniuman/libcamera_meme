@@ -22,19 +22,29 @@ jobs:
         commands: |
             apt-get update
             apt-get install -y libopencv-dev libegl1-mesa-dev libcamera-dev cmake build-essential libdrm-dev libgbm-dev default-jdk openjdk-17-jdk
-            cmake -B build-pi -DCMAKE_BUILD_TYPE=Release
-            cmake --build build-pi -j 4
+            cmake -B cmake_build -DCMAKE_BUILD_TYPE=Release
+            cmake --build cmake_build -j 4
 
     - run: find .
 
-    - uses: actions/upload-artifact@master
+    - run: |
+        ./gradlew build ${{ (startsWith(github.event_name, 'push') && 'publish') || '' }} -PArchOverride=linuxarm64
+      env:
+        ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+
+    - uses: actions/upload-artifact@v4
+      name: Upload jar
+      with:
+        name: libmrcal-jar-pi
+        path: ${{ github.workspace }}/build/libs/*.jar
+    - uses: actions/upload-artifact@v4
       with:
         name: libcamera-driver
-        path: build-pi/*.so
-    - uses: actions/upload-artifact@master
+        path: cmake_build/*.so
+    - uses: actions/upload-artifact@v4
       with:
         name: libcamera-meme
-        path: build-pi/libcamera_meme
+        path: cmake_build/libcamera_meme
 
     # Push to dev release on pushes to master
     - uses: pyTooling/Actions/releaser@r0
