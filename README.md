@@ -17,16 +17,12 @@ Build with the following cmake commands:
 
 ```
 cd photon-libcamera-gl-driver
-mkdir build
-cd build
-cmake ..
-
-make -j4
+mkdir cmake_build
+cmake -B cmake_build -S .
+cmake --build cmake_build
+./gradlew build publishtomavenlocal
 ```
-
-This should spit out the shared library into the build directory.
 
 ## Running eglinfo
 
 Compile with `g++ -std=c++17 -o eglinfo eglinfo.c headless_opengl.cpp -lEGL -lGLESv2 -lgbm`, and then run with  `./eglinfo`
-
