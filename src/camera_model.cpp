@@ -17,7 +17,10 @@
 
 #include "camera_model.h"
 
+#include <algorithm>
 #include <cstring>
+
+static const CameraModel grayScaleCameras[] = {OV9281};
 
 CameraModel stringToModel(const std::string &model) {
     std::printf("Checking model: %s\n", model.c_str());
@@ -38,4 +41,9 @@ CameraModel stringToModel(const std::string &model) {
         return Disconnected;
     else
         return Unknown;
+}
+
+bool isGrayScale(CameraModel model) {
+    return std::find(std::begin(grayScaleCameras), std::end(grayScaleCameras),
+                     model) != std::end(grayScaleCameras);
 }

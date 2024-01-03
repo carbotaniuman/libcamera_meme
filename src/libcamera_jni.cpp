@@ -127,7 +127,6 @@ JNIEXPORT jint Java_org_photonvision_raspi_LibCameraJNI_getSensorModelRaw(
     for (auto &c : cameras) {
         // Find the camera we want to be talking about
         if (std::strcmp(c->id().c_str(), c_name) == 0) {
-
             // Determine model
             auto &cprp = c->properties();
             auto model = cprp.get(libcamera::properties::Model);
@@ -363,7 +362,7 @@ Java_org_photonvision_raspi_LibCameraJNI_awaitNewFrame
         return 0;
     }
 
-    MatPair *pair = new MatPair();
+    MatPair *pair = new MatPair;
     *pair = runner->outgoing.take();
     return reinterpret_cast<jlong>(pair);
 }

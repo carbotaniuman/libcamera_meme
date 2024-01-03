@@ -18,6 +18,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 enum CameraModel {
     Disconnected = 0,
@@ -29,5 +30,5 @@ enum CameraModel {
     OV7251,
     Unknown
 };
-
 CameraModel stringToModel(const std::string &model);
+bool isGrayScale(CameraModel model);
