@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <optional>
@@ -40,6 +41,20 @@ template <typename T> class BlockingFuture {
         auto item = std::move(m_data.value());
         m_data.reset();
         return item;
+    }
+    std::optional<T> take(const std::chrono::seconds _max_time) {
+        std::unique_lock<std::mutex> lock(m_mutex);
+
+        std::optional<T> ret;
+
+        m_cond.wait_for(lock, _max_time, [&] { return m_data.has_value(); });
+
+        if (m_data.has_value()) {
+            auto item = std::move(m_data.value());
+            m_data.reset();
+            return item;
+        }
+        return std::nullopt;
     }
 
   private:
